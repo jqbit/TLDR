@@ -35,8 +35,6 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { existsSync, unlinkSync, readFileSync } from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -72,20 +70,7 @@ const { getDefaultMode, safeWriteFlag, readFlag, VALID_MODES } = config;
 // Modes handled by independent skills — not selectable via /tldr <arg>.
 const INDEPENDENT_MODES = new Set(['commit', 'review', 'compress']);
 
-function opencodeConfigDir() {
-  if (process.env.XDG_CONFIG_HOME) {
-    return path.join(process.env.XDG_CONFIG_HOME, 'opencode');
-  }
-  if (process.platform === 'win32') {
-    return path.join(
-      process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
-      'opencode'
-    );
-  }
-  return path.join(os.homedir(), '.config', 'opencode');
-}
-
-const flagPath = path.join(opencodeConfigDir(), '.tldr-active');
+const flagPath = join(config.getConfigDir('opencode'), '.tldr-active');
 
 // Parse a prompt for slash-command activation or natural-language toggles.
 // Returns the new mode to write, the literal string 'off' to deactivate, or

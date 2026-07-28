@@ -272,12 +272,6 @@ function rewriteLegacyManagedHookCommands(settings, absoluteNode) {
   return rewritten;
 }
 
-// ── claudeConfigDir ───────────────────────────────────────────────────────
-function claudeConfigDir() {
-  if (process.env.CLAUDE_CONFIG_DIR) return process.env.CLAUDE_CONFIG_DIR;
-  return path.join(os.homedir(), '.claude');
-}
-
 module.exports = {
   stripJsonComments,
   readSettings,
@@ -287,5 +281,4 @@ module.exports = {
   addCommandHook,
   removeTldrHooks,
   rewriteLegacyManagedHookCommands,
-  claudeConfigDir,
 };

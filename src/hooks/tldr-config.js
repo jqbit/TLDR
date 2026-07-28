@@ -20,17 +20,19 @@ const VALID_MODES = [
   'commit', 'review', 'compress'
 ];
 
-function getConfigDir() {
+// app is the config-dir basename: 'tldr' for the hook stack, 'opencode' for
+// the opencode plugin (which resolves the same XDG/APPDATA shape).
+function getConfigDir(app = 'tldr') {
   if (process.env.XDG_CONFIG_HOME) {
-    return path.join(process.env.XDG_CONFIG_HOME, 'tldr');
+    return path.join(process.env.XDG_CONFIG_HOME, app);
   }
   if (process.platform === 'win32') {
     return path.join(
       process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
-      'tldr'
+      app
     );
   }
-  return path.join(os.homedir(), '.config', 'tldr');
+  return path.join(os.homedir(), '.config', app);
 }
 
 function getConfigPath() {

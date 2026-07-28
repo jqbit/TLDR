@@ -178,17 +178,6 @@ test('rewriteLegacyManagedHookCommands ignores already-absolute node commands', 
   assert.equal(n, 0);
 });
 
-test('claudeConfigDir honors CLAUDE_CONFIG_DIR env', () => {
-  const orig = process.env.CLAUDE_CONFIG_DIR;
-  process.env.CLAUDE_CONFIG_DIR = '/tmp/__cm_test_cfg';
-  try { assert.equal(SETTINGS.claudeConfigDir(), '/tmp/__cm_test_cfg'); }
-  finally { if (orig === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = orig; }
-});
-
-// ── FIX4: non-object / non-array-hooks roots must never throw ────────────────
-// A valid-JSON but non-object root (or non-array hooks) previously threw an
-// uncaught TypeError in these helpers, aborting the whole multi-agent run.
-
 test('FIX4: addCommandHook returns false (no throw) on a non-plain-object root', () => {
   for (const bad of ['just a string', 42, [1, 2, 3], null]) {
     let out;

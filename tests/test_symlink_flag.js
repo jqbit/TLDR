@@ -192,31 +192,6 @@ test('all valid modes round-trip through symlinked parent', (tmp) => {
 
 // ---------- Source code audit ----------
 
-test('safeWriteFlag no longer has blanket symlink parent refusal', (tmp) => {
-  // Verify the old pattern "if (fs.lstatSync(flagDir).isSymbolicLink()) return;"
-  // without ownership check is no longer present
-  const source = fs.readFileSync(
-    path.join(__dirname, '..', 'src', 'hooks', 'tldr-config.js'), 'utf8'
-  );
-
-  // The old pattern: check isSymbolicLink on flagDir and immediately return
-  // New pattern: check isSymbolicLink, then realpathSync + ownership verification
-  const lines = source.split('\n');
-  let foundSymlinkCheck = false;
-  let foundOwnershipCheck = false;
-  for (const line of lines) {
-    if (line.includes('isSymbolicLink()') && line.includes('flagDir')) {
-      // This is the lstat check on the parent dir — should NOT be a blanket return
-      foundSymlinkCheck = true;
-    }
-    if (line.includes('realpathSync') || line.includes('getuid') || line.includes('normalizedHome')) {
-      foundOwnershipCheck = true;
-    }
-  }
-
-  assert.ok(foundOwnershipCheck, 'safeWriteFlag should include ownership/home-dir verification');
-});
-
 // ---------- Summary ----------
 
 console.log(`\n${passed} passed, ${failed} failed`);

@@ -1156,7 +1156,7 @@ async function installHooks(ctx) {
 
     // Defensive validation before write — Claude Code Zod will discard the
     // entire settings.json if any single hook is malformed (#249-class footgun).
-    SETTINGS.validateHookFields(settings);
+    SETTINGS.validateHookFields(settings, warn);
     SETTINGS.writeSettings(settingsPath, settings);
     process.stdout.write(`  hooks wired in ${settingsPath}\n`);
     return 'ok';
@@ -1247,64 +1247,53 @@ async function runInit(ctx) {
 }
 
 // ── HTTPS download via stdlib ─────────────────────────────────────────────
-// Production-grade: strict host allowlist + timeout + size cap on https path.
-// curl path remains best-effort (user's curl may have its own protections).
+// Strict host allowlist — enforced on the initial URL and on every redirect hop.
 const ALLOWED_DOWNLOAD_HOSTS = new Set([
   'raw.githubusercontent.com',
   'github.com',
 ]);
 
-function downloadTo(url, dest) {
-  // One host/protocol guard covers BOTH paths (curl and the Node https
-  // fallback), so the preferred curl branch cannot be pointed at an arbitrary
-  // host/scheme via a redirect or a poisoned PATH curl.
+function assertDownloadUrl(url) {
   const u = new URL(url);
   if (u.protocol !== 'https:' || !ALLOWED_DOWNLOAD_HOSTS.has(u.hostname)) {
     throw new Error(`Refusing download from untrusted URL: ${url}`);
   }
+  return url;
+}
 
-  // Prefer curl/wget when available (better proxy + cert handling on legacy
-  // systems); fall back to Node https. Constrain curl to https, cap redirects
-  // and size, so it enforces the same limits as the stdlib path.
-  if (hasCmd('curl')) {
-    const r = child_process.spawnSync('curl', [
-      '-fsSL', '--proto', '=https', '--max-redirs', '3',
-      '--max-filesize', '524288', '--max-time', '30', '-o', dest, url,
-    ], { stdio: 'inherit' });
-    if (r.status === 0) return;
-    throw new Error(`curl failed for ${url}`);
-  }
+async function downloadTo(url, dest, redirects = 3) {
+  assertDownloadUrl(url);
 
-  const https = require('https');
-  return new Promise((resolve, reject) => {
-    const req = https.get(url, { timeout: 30000 }, (res) => {
-      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        resolve(downloadTo(res.headers.location, dest));
-        return;
-      }
-      if (res.statusCode !== 200) { reject(new Error(`HTTP ${res.statusCode} for ${url}`)); return; }
+  const buf = await fetchCapped(url, redirects);
+  fs.writeFileSync(dest, buf);
+}
 
-      const MAX_BYTES = 512 * 1024; // 512 KiB hard cap — init script is tiny
-      let received = 0;
-      const chunks = [];
-      res.on('data', (chunk) => {
-        received += chunk.length;
-        if (received > MAX_BYTES) {
-          req.destroy(new Error('Download size limit exceeded'));
-        }
-        chunks.push(chunk);
-      });
-      res.on('end', () => {
-        try {
-          fs.writeFileSync(dest, Buffer.concat(chunks));
-          resolve();
-        } catch (e) { reject(e); }
-      });
-      res.on('error', reject);
-    });
-    req.on('error', reject);
-    req.on('timeout', () => req.destroy(new Error('Download timeout')));
+// Fetch with the same limits the curl/https pair used to enforce separately:
+// 512 KiB hard cap, 30s timeout, max 3 redirects. Redirects are followed
+// MANUALLY so every hop re-enters downloadTo's host/protocol allowlist — a
+// redirect cannot walk us off ALLOWED_DOWNLOAD_HOSTS.
+async function fetchCapped(url, redirects = 3) {
+  const MAX_BYTES = 512 * 1024; // hook files and manifests are tiny
+  const res = await fetch(url, {
+    redirect: 'manual',
+    signal: AbortSignal.timeout(30000),
   });
+
+  if (res.status >= 300 && res.status < 400) {
+    const loc = res.headers.get('location');
+    if (!loc || redirects <= 0) throw new Error(`Too many redirects for ${url}`);
+    return fetchCapped(assertDownloadUrl(new URL(loc, url).href), redirects - 1);
+  }
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+
+  const chunks = [];
+  let received = 0;
+  for await (const chunk of res.body) {
+    received += chunk.length;
+    if (received > MAX_BYTES) throw new Error(`Download size limit exceeded for ${url}`);
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
 }
 
 // ── Integrity verification for downloaded hooks ─────────────────────────────
@@ -1319,10 +1308,9 @@ function sha256File(p) {
 // Parses the standard `sha256sum` text format: "<64-hex>  <path>" (two
 // spaces, or " *<path>" binary marker).
 async function loadRemoteHookChecksums() {
-  const tmp = path.join(os.tmpdir(), `tldr-checksums-${process.pid}-${Date.now()}.sha256`);
   try {
-    await downloadTo(`${HOOKS_REMOTE}/checksums.sha256`, tmp);
-    const txt = fs.readFileSync(tmp, 'utf8');
+    const url = assertDownloadUrl(`${HOOKS_REMOTE}/checksums.sha256`);
+    const txt = (await fetchCapped(url)).toString('utf8');
     const map = new Map();
     for (const line of txt.split('\n')) {
       const m = line.trim().match(/^([0-9a-fA-F]{64})\s+\*?(.+)$/);
@@ -1331,8 +1319,6 @@ async function loadRemoteHookChecksums() {
     return map.size ? map : null;
   } catch (_) {
     return null;
-  } finally {
-    try { fs.unlinkSync(tmp); } catch (_) { /* best effort */ }
   }
 }
 
@@ -1358,7 +1344,7 @@ function uninstall(ctx) {
         const cmd = typeof settings.statusLine === 'string' ? settings.statusLine : (settings.statusLine.command || '');
         if (cmd.includes('tldr-statusline')) delete settings.statusLine;
       }
-      SETTINGS.validateHookFields(settings);
+      SETTINGS.validateHookFields(settings, warn);
       if (!opts.dryRun) SETTINGS.writeSettings(settingsPath, settings);
       ok(`  removed ${removed} TLDR hook entr${removed === 1 ? 'y' : 'ies'} from settings.json`);
     }

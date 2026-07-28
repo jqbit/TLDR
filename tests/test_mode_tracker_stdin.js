@@ -6,11 +6,7 @@
 // and the hook exits non-zero — a spurious UserPromptSubmit hook failure. A
 // robust hook registers a stdin 'error' handler so this stays a clean exit.
 //
-// tldr-mode-tracker.js registers `process.stdin.on('error', () => process.exit(0))`,
-// so the static probe below detects the handler and the crash-resistance
-// assertion is ENFORCED (not skipped). The probe is kept so that if the handler
-// is ever removed, the test degrades to a skip rather than a hard failure while
-// still flagging the regression. The normal-path regression always runs.
+// If that handler is ever removed, this test fails rather than skipping.
 //
 // Run: node tests/test_mode_tracker_stdin.js
 
@@ -26,12 +22,9 @@ const CLEAN_EXIT = 0;
 // The crash-resistance assertion is only meaningful once the hook registers a
 // stdin 'error' listener. Detect it statically so the test starts enforcing the
 // invariant the moment the handler is added, and skips (never fails) until then.
-const HOOK_SRC = fs.readFileSync(HOOK_PATH, 'utf8');
-const HAS_STDIN_ERROR_HANDLER = /stdin\s*\.\s*on\s*\(\s*['"]error['"]/.test(HOOK_SRC);
 
 let passed = 0;
 let failed = 0;
-let skipped = 0;
 
 function test(name, fn) {
   try {
@@ -43,11 +36,6 @@ function test(name, fn) {
     console.error(`  ✗ ${name}`);
     console.error(`    ${e.message}`);
   }
-}
-
-function skip(name, reason) {
-  skipped++;
-  console.log(`  ○ ${name} (skipped: ${reason})`);
 }
 
 console.log('tldr-mode-tracker stdin error handling\n');
@@ -65,8 +53,7 @@ function runWithStdinError() {
   });
 }
 
-if (HAS_STDIN_ERROR_HANDLER) {
-  test('stdin "error" event does not crash the hook (exit 0)', () => {
+test('stdin "error" event does not crash the hook (exit 0)', () => {
     const res = runWithStdinError();
     assert.strictEqual(
       res.status,
@@ -78,13 +65,7 @@ if (HAS_STDIN_ERROR_HANDLER) {
       !/Unhandled 'error' event/.test(res.stderr || ''),
       `hook leaked an uncaught stdin error:\n${(res.stderr || '').trim()}`
     );
-  });
-} else {
-  skip(
-    'stdin "error" event does not crash the hook (exit 0)',
-    "tldr-mode-tracker.js registers no stdin 'error' handler (code gap; source unchanged)"
-  );
-}
+});
 
 // Regression guard: the normal path — a valid prompt piped on stdin, then a
 // clean EOF — still exits 0.
@@ -131,5 +112,5 @@ test('"/tldr:tldr ultra" writes ultra to the flag file', () => {
   }
 });
 
-console.log(`\n${passed} passed, ${failed} failed, ${skipped} skipped`);
+console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

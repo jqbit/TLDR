@@ -318,24 +318,14 @@ function defaultRunInstall(sourceDir, spawnSync, log) {
     cwd: sourceDir,
     encoding: 'utf8',
     env: process.env,
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: 'inherit',
   });
-  if (r.stdout) process.stdout.write(r.stdout);
-  if (r.stderr) process.stderr.write(r.stderr);
   if (r.status !== 0) {
     return { ok: false, error: `installer exited ${r.status}`, status: r.status };
   }
-  // Best-effort parse of installer summary lines.
-  const installed = [];
-  const out = (r.stdout || '') + '\n' + (r.stderr || '');
-  const m = out.match(/installed:\n((?:\s+•.+\n)+)/);
-  if (m) {
-    for (const line of m[1].split('\n')) {
-      const item = line.replace(/^\s+•\s*/, '').trim();
-      if (item) installed.push(item);
-    }
-  }
-  return { ok: true, installed };
+  // The child already printed its own summary; runUpdate falls back to
+  // "(see installer summary above)" when the list is empty.
+  return { ok: true, installed: [] };
 }
 
 /**
@@ -480,17 +470,8 @@ function runUpdate(opts, deps) {
 module.exports = {
   REPO,
   REPO_URL,
-  CACHE_DIR,
-  RELEASE_TAG_RE,
   parseUpdateArgs,
-  printUpdateHelp,
-  looksLikeTldrTree,
-  isTldrGitRepo,
   resolveSourceDir,
   findLatestReleaseTag,
-  resolveTarget,
-  getHeadSha,
-  shortSha,
   runUpdate,
-  makeGit,
 };
