@@ -12,7 +12,11 @@ const { getDefaultMode, safeWriteFlag, readFlag, VALID_MODES } = require('./tldr
 // selectable via /tldr <arg>.
 const INDEPENDENT_MODES = new Set(['commit', 'review', 'compress']);
 
-const claudeDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+const cfgArg = process.argv.find(a => a.startsWith('--config-dir='));
+const claudeDir = (cfgArg ? cfgArg.slice('--config-dir='.length) : '')
+  || process.env.TLDR_CONFIG_DIR
+  || process.env.CLAUDE_CONFIG_DIR
+  || path.join(os.homedir(), '.claude');
 const flagPath = path.join(claudeDir, '.tldr-active');
 
 let input = '';

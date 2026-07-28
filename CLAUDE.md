@@ -62,6 +62,25 @@ Claude hook files live in `src/hooks/`:
 
 The active-mode flag is `$CLAUDE_CONFIG_DIR/.tldr-active`; stats suffix is `$CLAUDE_CONFIG_DIR/.tldr-statusline-suffix`.
 
+## Native-agent hooks
+
+Codex, Cursor, Grok and Antigravity ship their own hook systems. `bin/lib/agent-hooks.js`
+builds each schema; `installAgentHooks` in `bin/install.js` copies the hook scripts to
+`<dir>/hooks/tldr/` (two levels under `<dir>/skills/`, so `tldr-activate.js`'s
+`../../skills/tldr/SKILL.md` lookup resolves) and merges entries into the agent's config.
+
+| Agent | File | Event | Envelope |
+|---|---|---|---|
+| codex | `~/.codex/hooks.json` | `SessionStart` + `UserPromptSubmit` | raw stdout (Claude-shaped) |
+| grok | `~/.grok/hooks/tldr.json` | `SessionStart` + `UserPromptSubmit` | raw stdout (Claude-shaped) |
+| cursor | `~/.cursor/hooks.json` | `sessionStart` | `{"additional_context": ...}` |
+| antigravity | `~/.gemini/config/hooks.json` | `PreInvocation` | `{"injectSteps":[{"ephemeralMessage":...}]}` |
+
+`tldr-activate.js` picks the envelope from `--format=`; both hook scripts take
+`--config-dir=` so each agent keeps its own `.tldr-active` flag. Merging is by
+command marker, so re-running is idempotent and never drops another tool's hooks.
+Codex skips untrusted hooks until the user runs `/hooks`.
+
 ## opencode notes
 
 `bin/install.js` copies `agents/tldrcrew-*.md` into opencode after passing them through `bin/lib/opencode-agent.js` (`stripOpencodeAgentTools`). That strips two Claude-isms: the `tools: [Read, Grep, Bash]` array (opencode rejects YAML arrays — one bad file invalidates the whole opencode config) and the `model:` field (an Anthropic alias opencode can't resolve without an Anthropic provider, so the subagent would fail to spawn with "Model not found"). Claude keeps both.

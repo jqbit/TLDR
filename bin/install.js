@@ -27,6 +27,7 @@ const OPENCLAW = require('./lib/openclaw');
 const { stripOpencodeAgentTools } = require('./lib/opencode-agent');
 const { atomicWrite, createSecureTempDir, safeRmdir } = require('./lib/safe-fs');
 const { findFencedBlocks, stripFencedBlocks, upsertFencedBlock } = require('./lib/fenced');
+const AGENT_HOOKS = require('./lib/agent-hooks');
 const UPDATE = require('./lib/update');
 
 const REPO = '0p9b/TLDR';
@@ -256,9 +257,9 @@ const PROVIDERS = [
   { id: 'opencode',   label: 'opencode',            mech: 'native opencode plugin',        detect: 'command:opencode' },
   { id: 'openclaw',   label: 'OpenClaw',            mech: 'workspace skill + SOUL.md',     detect: 'command:openclaw||dir:$HOME/.openclaw/workspace' },
   { id: 'hermes',     label: 'Hermes Agent',        mech: 'native hermes SOUL.md + productivity skills',   detect: 'command:hermes' },
-  { id: 'codex',      label: 'Codex CLI',           mech: 'native AGENTS.md + skill',       detect: 'command:codex',           native: { dir: '$HOME/.codex',    rules: 'AGENTS.md', skills: 'skills' } },
+  { id: 'codex',      label: 'Codex CLI',           mech: 'native AGENTS.md + skill',       detect: 'command:codex',           native: { dir: '$HOME/.codex',    rules: 'AGENTS.md', skills: 'skills', hooks: { file: 'hooks.json', style: 'claude', trust: 'run /hooks in Codex to trust the new TLDR hooks (Codex skips untrusted hooks)' } } },
   { id: 'pi',         label: 'Pi Coding Agent',     mech: 'native AGENTS.md + skill',       detect: 'command:pi',              native: { dir: '$HOME/.pi/agent', rules: 'AGENTS.md', skills: 'skills' } },
-  { id: 'grok',       label: 'Grok Build CLI',      mech: 'native AGENTS.md + skill',       detect: 'command:grok',            native: { dir: '$HOME/.grok',     rules: 'AGENTS.md', skills: 'skills' } },
+  { id: 'grok',       label: 'Grok Build CLI',      mech: 'native AGENTS.md + skill',       detect: 'command:grok',            native: { dir: '$HOME/.grok',     rules: 'AGENTS.md', skills: 'skills', hooks: { file: 'hooks/tldr.json', style: 'claude' } } },
   // oh-my-pi (omp): loads a user-scope AGENTS.md and auto-discovers skills from
   // <agentDir>/skills. Default agent dir is ~/.omp/agent; it becomes
   // ~/.omp/profiles/<name>/agent only when OMP_PROFILE/PI_PROFILE is set — the
@@ -268,7 +269,7 @@ const PROVIDERS = [
   // IDE / VS Code-family — extension probes are precise. Cursor/Windsurf also
   // ship CLI binaries; we drop the dir fallback because the dir lingers after
   // uninstall and false-positives heavily.
-  { id: 'cursor',     label: 'Cursor',              mech: 'native skill (per-repo rules)',  detect: 'command:cursor-agent||command:cursor||macapp:Cursor', native: { dir: '$HOME/.cursor', skills: 'skills', rules: null } },
+  { id: 'cursor',     label: 'Cursor',              mech: 'native skill (per-repo rules)',  detect: 'command:cursor-agent||command:cursor||macapp:Cursor', native: { dir: '$HOME/.cursor', skills: 'skills', rules: null, hooks: { file: 'hooks.json', style: 'cursor' } } },
   { id: 'windsurf',   label: 'Windsurf',            mech: 'npx skills add (windsurf)',     detect: 'command:windsurf||macapp:Windsurf', profile: 'windsurf' },
   { id: 'cline',      label: 'Cline',               mech: 'npx skills add (cline)',        detect: 'vscode-ext:cline',        profile: 'cline' },
   { id: 'continue',   label: 'Continue',            mech: 'npx skills add (continue)',     detect: 'vscode-ext:continue.continue||vscode-ext:continue', profile: 'continue' },
@@ -311,7 +312,7 @@ const PROVIDERS = [
   //   gemini CLI on first use — not a reliable signal of antigravity itself.
   { id: 'junie',      label: 'JetBrains Junie',     mech: 'npx skills add (junie)',        detect: 'jetbrains-plugin:junie', profile: 'junie', soft: true },
   { id: 'qoder',      label: 'Qoder',               mech: 'npx skills add (qoder)',        detect: 'dir:$HOME/.qoder', profile: 'qoder', soft: true },
-  { id: 'antigravity',label: 'Google Antigravity',  mech: 'native AGENTS.md + skill',       detect: 'command:agy||dir:$HOME/.gemini/antigravity', native: { dir: '$HOME/.gemini/config', rules: 'AGENTS.md', skills: 'skills' } },
+  { id: 'antigravity',label: 'Google Antigravity',  mech: 'native AGENTS.md + skill',       detect: 'command:agy||dir:$HOME/.gemini/antigravity', native: { dir: '$HOME/.gemini/config', rules: 'AGENTS.md', skills: 'skills', hooks: { file: 'hooks.json', style: 'antigravity' } } },
 ];
 
 // ── Detection ─────────────────────────────────────────────────────────────
@@ -665,6 +666,70 @@ function stripFencedRuleset(agentsMd, opts, note) {
 // <dir>/<skills>/<name>/. Driven by a provider's `native` config. Used by codex
 // (~/.codex), pi (~/.pi/agent), grok (~/.grok), antigravity (~/.gemini/config),
 // omp (~/.omp/agent), and cursor (~/.cursor, skill-only). Needs a local clone.
+// ── Native-agent hook wiring ──────────────────────────────────────────────
+// Codex, Cursor, Grok and Antigravity all ship real hook systems. We copy the
+// hook scripts to <dir>/hooks/tldr/ — two levels under the agent's skills dir,
+// so tldr-activate.js's `../../skills/tldr/SKILL.md` lookup resolves to the
+// skill suite we just installed — then merge our entries into the agent's hook
+// config, preserving anything the user or another tool already put there.
+const AGENT_HOOK_SCRIPTS = ['package.json', 'tldr-config.js', 'tldr-activate.js', 'tldr-mode-tracker.js', 'tldrcrew-model-overrides.js'];
+
+function installAgentHooks(ctx, prov, dir) {
+  const { note, warn, opts, repoRoot } = ctx;
+  const h = prov.native && prov.native.hooks;
+  if (!h) return;
+
+  const hooksDir = path.join(dir, 'hooks', 'tldr');
+  const cfgPath = path.join(dir, h.file);
+  const q = (p) => JSON.stringify(p);
+  const activate = `${q(process.execPath)} ${q(path.join(hooksDir, 'tldr-activate.js'))} --config-dir=${q(dir)}` +
+                   (h.style === 'claude' ? '' : ` --format=${h.style}`);
+  const tracker = `${q(process.execPath)} ${q(path.join(hooksDir, 'tldr-mode-tracker.js'))} --config-dir=${q(dir)}`;
+
+  if (opts.dryRun) {
+    note(`  would install ${AGENT_HOOK_SCRIPTS.length} hook scripts into ${hooksDir}/`);
+    note(`  would merge TLDR hooks into ${cfgPath}`);
+    if (h.trust) note(`  ${h.trust}`);
+    return;
+  }
+
+  try {
+    fs.mkdirSync(hooksDir, { recursive: true });
+    for (const f of AGENT_HOOK_SCRIPTS) {
+      const src = path.join(repoRoot, 'src', 'hooks', f);
+      if (fs.existsSync(src)) fs.copyFileSync(src, path.join(hooksDir, f));
+    }
+
+    let existing = {};
+    if (fs.existsSync(cfgPath)) {
+      try { existing = JSON.parse(SETTINGS.stripJsonComments(fs.readFileSync(cfgPath, 'utf8'))) || {}; }
+      catch (e) {
+        warn(`  ${cfgPath} is not valid JSON; leaving it alone (hooks not wired)`);
+        return;
+      }
+      // First-install backup only — repeat runs must not overwrite the only
+      // known-good copy with an already-merged file. COPYFILE_EXCL refuses a
+      // pre-existing destination, including a planted symlink.
+      const bak = cfgPath + '.bak';
+      if (!fs.existsSync(bak)) {
+        try { fs.copyFileSync(cfgPath, bak, fs.constants.COPYFILE_EXCL); } catch (_) {}
+      }
+    }
+
+    let next;
+    if (h.style === 'cursor')           next = AGENT_HOOKS.buildCursorStyle(existing, activate);
+    else if (h.style === 'antigravity') next = AGENT_HOOKS.buildAntigravityStyle(existing, activate);
+    else                                next = AGENT_HOOKS.buildClaudeStyle(existing, activate, tracker);
+
+    fs.mkdirSync(path.dirname(cfgPath), { recursive: true });
+    atomicWrite(cfgPath, JSON.stringify(next, null, 2) + '\n', 0o644);
+    process.stdout.write(`  hooks wired in ${cfgPath}\n`);
+    if (h.trust) note(`  ${h.trust}`);
+  } catch (e) {
+    warn(`  hook wiring failed for ${prov.label}: ` + ((e && e.message) || e));
+  }
+}
+
 function installNativeAgentsMd(ctx, prov) {
   const { say, note, warn, opts, repoRoot, results } = ctx;
   results.detected++;
@@ -676,7 +741,9 @@ function installNativeAgentsMd(ctx, prov) {
   // still install the auto-discovered skills and point users at --with-init.
   const rulesFile = n.rules === null ? null : path.join(dir, n.rules || 'AGENTS.md');
   const skillsDir = path.join(dir, n.skills || 'skills');
-  const noRulesNote = '  no global always-on rules file for this agent — skills installed; use --with-init for a per-repo rule file';
+  const noRulesNote = n.hooks
+    ? '  no global rules file for this agent — always-on delivered via its sessionStart hook instead'
+    : '  no global always-on rules file for this agent — skills installed; use --with-init for a per-repo rule file';
 
   if (!repoRoot) {
     warn(`  ${prov.label} native install requires a local clone of the TLDR repo.`);
@@ -689,6 +756,7 @@ function installNativeAgentsMd(ctx, prov) {
     if (rulesFile) note(`  would write fenced TLDR ruleset to ${rulesFile}`);
     else note(noRulesNote);
     note(`  would copy ${OPENCODE_SKILL_DIRS.length} skill dirs into ${skillsDir}/`);
+    if (opts.withHooks) installAgentHooks(ctx, prov, dir);
     results.installed.push(prov.id);
     process.stdout.write('\n');
     return;
@@ -709,6 +777,7 @@ function installNativeAgentsMd(ctx, prov) {
     }
     if (rulesFile) writeFencedRuleset(rulesFile, repoRoot, opts, note);
     else note(noRulesNote);
+    if (opts.withHooks) installAgentHooks(ctx, prov, dir);
     results.installed.push(prov.id);
   } catch (e) {
     warn(`  ${prov.label} install failed: ` + (e && e.message || e));
@@ -1521,6 +1590,37 @@ function uninstall(ctx) {
       if (fs.existsSync(skillDir)) {
         if (!opts.dryRun) { try { fs.rmSync(skillDir, { recursive: true, force: true }); } catch (_) {} }
         note(`  removed ${skillDir}`);
+        touched = true;
+      }
+    }
+    // Hook wiring: prune only our entries from the agent's hook config, then
+    // drop the scripts dir. A hook file that becomes empty is left in place —
+    // the user may still own the file itself.
+    if (prov.native.hooks) {
+      const cfgPath = path.join(ndir, prov.native.hooks.file);
+      if (fs.existsSync(cfgPath)) {
+        try {
+          const cfg = JSON.parse(SETTINGS.stripJsonComments(fs.readFileSync(cfgPath, 'utf8'))) || {};
+          if (prov.native.hooks.style === 'antigravity') {
+            delete cfg.tldr;
+          } else if (cfg.hooks && typeof cfg.hooks === 'object') {
+            for (const ev of Object.keys(cfg.hooks)) {
+              const pruned = prov.native.hooks.style === 'cursor'
+                ? AGENT_HOOKS.pruneFlat(cfg.hooks[ev])
+                : AGENT_HOOKS.pruneGrouped(cfg.hooks[ev]);
+              if (pruned.length) cfg.hooks[ev] = pruned;
+              else delete cfg.hooks[ev];
+            }
+          }
+          if (!opts.dryRun) atomicWrite(cfgPath, JSON.stringify(cfg, null, 2) + '\n', 0o644);
+          note(`  pruned TLDR hooks from ${cfgPath}`);
+          touched = true;
+        } catch (_) { /* unparseable — leave the user's file alone */ }
+      }
+      const hookScripts = path.join(ndir, 'hooks', 'tldr');
+      if (fs.existsSync(hookScripts)) {
+        if (!opts.dryRun) { try { fs.rmSync(hookScripts, { recursive: true, force: true }); } catch (_) {} }
+        note(`  removed ${hookScripts}`);
         touched = true;
       }
     }

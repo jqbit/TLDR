@@ -11,7 +11,34 @@ const path = require('path');
 const os = require('os');
 const { getDefaultMode, safeWriteFlag } = require('./tldr-config');
 
-const claudeDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+// TLDR_CONFIG_DIR lets non-Claude agents (codex/cursor/grok/antigravity) keep
+// their own mode flag; falls back to Claude's dir so existing installs are
+// unaffected.
+function argValue(name) {
+  const hit = process.argv.find(a => a.startsWith(`--${name}=`));
+  return hit ? hit.slice(name.length + 3) : '';
+}
+
+const claudeDir = argValue('config-dir')
+  || process.env.TLDR_CONFIG_DIR
+  || process.env.CLAUDE_CONFIG_DIR
+  || path.join(os.homedir(), '.claude');
+
+// Each agent wants session-start context in a different envelope.
+//   text        Claude / Codex / Grok — raw stdout becomes added context
+//   cursor      Cursor sessionStart  -> {"additional_context": "..."}
+//   antigravity agy PreInvocation    -> {"injectSteps":[{"ephemeralMessage":"..."}]}
+const FORMAT = argValue('format') || process.env.TLDR_HOOK_FORMAT || 'text';
+
+function emit(text) {
+  if (FORMAT === 'cursor') {
+    process.stdout.write(JSON.stringify({ additional_context: text }));
+  } else if (FORMAT === 'antigravity') {
+    process.stdout.write(JSON.stringify({ injectSteps: [{ ephemeralMessage: text }] }));
+  } else {
+    process.stdout.write(text);
+  }
+}
 const flagPath = path.join(claudeDir, '.tldr-active');
 const settingsPath = path.join(claudeDir, 'settings.json');
 
@@ -31,7 +58,7 @@ const mode = getDefaultMode();
 // "off" mode — skip activation entirely, don't write flag or emit rules
 if (mode === 'off') {
   try { fs.unlinkSync(flagPath); } catch (e) {}
-  process.stdout.write('OK');
+  emit(FORMAT === 'text' ? 'OK' : '');
   process.exit(0);
 }
 
@@ -51,7 +78,7 @@ safeWriteFlag(flagPath, mode);
 const INDEPENDENT_MODES = new Set(['commit', 'review', 'compress']);
 
 if (INDEPENDENT_MODES.has(mode)) {
-  process.stdout.write('TLDR MODE ACTIVE — level: ' + mode + '. Behavior defined by /tldr-' + mode + ' skill.');
+  emit('TLDR MODE ACTIVE — level: ' + mode + '. Behavior defined by /tldr-' + mode + ' skill.');
   process.exit(0);
 }
 
@@ -127,8 +154,10 @@ if (skillContent) {
     'Code/commits/PRs: write normal. "stop tldr" or "normal mode": revert. Level persist until changed or session end.';
 }
 
-// 3. Detect missing statusline config — nudge Claude to help set it up
+// 3. Detect missing statusline config — nudge Claude to help set it up.
+//    Claude-only: no other agent has a statusLine setting to configure.
 try {
+  if (FORMAT !== 'text' || argValue('config-dir') || process.env.TLDR_CONFIG_DIR) throw new Error('skip');
   let hasStatusline = false;
   if (fs.existsSync(settingsPath)) {
     const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
@@ -157,4 +186,4 @@ try {
   // Silent fail — don't block session start over statusline detection
 }
 
-process.stdout.write(output);
+emit(output);
