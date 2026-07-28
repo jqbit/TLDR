@@ -10,41 +10,22 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  # OS/Node-independent gates run once, not per Node matrix entry.
+  gates:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [20, 22, 24]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: ${{ matrix.node-version }}
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.11"
+      - name: Shell syntax
+        run: bash -n install.sh install-full.sh src/hooks/*.sh
       - name: Python gates
         run: |
-          python3 tests/verify_repo.py
-          python3 bench/check-doc-sync.py
-          python3 bench/check-md-links.py
-          python3 tests/test_compress_safety.py
-          python3 tests/test_hooks.py
-          python3 tests/test_validate_inline.py
-          python3 tests/test_detect.py
-          python3 tests/test_mode_tracker.py
-      - name: Installer tests
-        run: node --test tests/installer/*.test.mjs
-      - name: Standalone JS tests
-        run: |
-          node tests/test_mcp_shrink.js
-          node tests/test_symlink_flag.js
-          node tests/test_repo_local_config.js
-          node tests/test_tldr_init.js
-          node tests/test_tldr_stats.js
-          node tests/test_tldrcrew_model_overrides.js
-          node tests/test_mode_tracker_stdin.js
+          for f in tests/*.py; do
+            echo "== $f"
+            python3 "$f"
+          done
       - name: HTML asset links
         run: |
           python3 - <<'PY'
@@ -83,3 +64,17 @@ jobs:
             echo 'Potential secret pattern found.' >&2
             exit 1
           fi
+
+  node-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: JS test suites
+        run: node tests/run-all.mjs --js-only

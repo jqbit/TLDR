@@ -19,7 +19,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --test tests/installer/*.test.mjs"
+    "test": "node tests/run-all.mjs"
   },
   "files": [
     "bin/",

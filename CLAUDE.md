@@ -79,8 +79,8 @@ Run full local gates:
 ```bash
 npm test
 python3 tests/verify_repo.py
-python3 bench/check-doc-sync.py
-python3 bench/check-md-links.py
+python3 tests/check-doc-sync.py
+python3 tests/check-md-links.py
 node tests/test_tldr_init.js
 node tests/test_symlink_flag.js
 node tests/test_repo_local_config.js

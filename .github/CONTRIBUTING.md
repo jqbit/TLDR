@@ -119,7 +119,7 @@ merging.
 ```bash
 # Primary CI / merge gates
 python3 tests/verify_repo.py
-python3 bench/check-doc-sync.py
+python3 tests/check-doc-sync.py
 npm test
 
 # Additional standalone suites

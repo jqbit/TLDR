@@ -164,6 +164,15 @@ expect_contains(
 if not INSTALL.exists():
     fail("install.sh missing from repo root")
 
+# Agent count must match the PROVIDERS registry in bin/install.js wherever
+# docs state it (install.sh usage text, CLAUDE.md provider list).
+install_js = (ROOT / "bin" / "install.js").read_text(encoding="utf-8")
+provider_count = len(re.findall(r"\{ id: '", install_js))
+install_sh = INSTALL.read_text(encoding="utf-8")
+claude_md = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+expect_contains(install_sh, f"all {provider_count} supported agents", "install.sh agent count")
+expect_contains(claude_md, f"({provider_count} total", "CLAUDE.md agent count")
+
 if not COMMAND.exists():
     fail("commands/tldr.md missing from repo root")
 

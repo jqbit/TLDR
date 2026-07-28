@@ -15,7 +15,7 @@ Behavior:
   - Installs TLDR.md to the 8 standard coding-agent locations (claude, gemini,
     codex, opencode, factory, pi, grok, and a repo-root AGENTS.md).
   - Overwrites an existing rules file (a timestamped .bak is kept first). For a
-    NON-destructive, per-agent native install of all 37 supported agents, use
+    NON-destructive, per-agent native install of all 38 supported agents, use
     the full installer instead: `npx -y github:0p9b/TLDR -- --all`.
   - Also installs /tldr command to supported agents' command dirs (claude, opencode, factory, cursor).
   - --with-hermes updates ~/.hermes/SOUL.md too (prompt merge only).
