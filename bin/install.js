@@ -1703,9 +1703,15 @@ async function promptForOnly(detected) {
   rl.close();
   const t = (ans || '').trim().toLowerCase();
   if (t === 'q') process.exit(0);
-  if (t === '' || t === 'a' || t === 'all') return null;
+  // "all" returns the ids explicitly rather than null. null means "no filter",
+  // which leaves opts.only empty — and soft-detected providers (qoder etc.) are
+  // auto-skipped unless explicitly named, so they were listed in this menu,
+  // confirmed by the user, then silently dropped. Seeing the list and saying
+  // yes IS explicit opt-in. Non-TTY callers return early above and keep the
+  // conservative auto-skip.
+  if (t === '' || t === 'a' || t === 'all') return detected.map(p => p.id);
   const picks = t.split(/[\s,]+/).map(s => parseInt(s, 10)).filter(n => n >= 1 && n <= detected.length);
-  if (picks.length === 0) return null;
+  if (picks.length === 0) return detected.map(p => p.id);
   return picks.map(n => detected[n - 1].id);
 }
 
