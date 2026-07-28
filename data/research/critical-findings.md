@@ -26,7 +26,7 @@ For some harnesses we did not produce N=3 trials × 15 prompts × 2 conditions c
 - copilot, hermes, pi, cline, gemini — high timeout rates due to first-run setup, auth, or TTY sensitivities documented above. The published bench reports only the cells that produced non-empty output.
 - openclaw was tested at reduced N due to per-cell wall time (~180 s).
 
-These gaps are environmental, not TLDR.md defects. Re-running the bench with serial-per-harness execution + per-harness pre-warmup eliminates the empty cells. See `bench/v0.14-bench.sh` and the analyzer at `bench/analyze.js`.
+These gaps are environmental, not TLDR.md defects. Re-running the bench with serial-per-harness execution + per-harness pre-warmup eliminates the empty cells. The bench script and analyzer were removed in v0.20; see git history.
 
 ## Methodological lessons (carried forward from v0.13.x + new)
 

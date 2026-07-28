@@ -22,7 +22,6 @@ TLDR/
 ├── src/hooks/                      # Claude hook/statusline stack
 ├── src/plugins/tldr-opencode/      # opencode native plugin source
 ├── src/mcp-servers/tldr-shrink/    # optional MCP description compressor
-├── plugins/tldr/                   # distributable plugin mirror
 ├── docs/assets/                    # mascot/social/favicon assets
 └── tests/                          # installer + safety + smoke tests
 ```
@@ -30,7 +29,6 @@ TLDR/
 ## Edit rules
 
 - Edit source first: `skills/**`, `agents/**`, `src/**`, `bin/**`, `commands/**`.
-- Keep mirrors in sync: `plugins/tldr/**` and `dist/tldr.skill` must match source.
 - Run `python3 tests/verify_repo.py` before any commit touching skills, agents, hooks, plugins, or installer code.
 - Do not add legacy package names, legacy hook markers, or legacy skill paths to shipped code/docs.
 - Historical lineage belongs in `docs/legal/ATTRIBUTION.md`, `docs/legal/THIRD_PARTY_NOTICES.md`, or `data/**`, not in install paths or public commands.
@@ -77,19 +75,7 @@ The active-mode flag is `$CLAUDE_CONFIG_DIR/.tldr-active`; stats suffix is `$CLA
 Run full local gates:
 
 ```bash
-npm test
-python3 tests/verify_repo.py
-python3 tests/check-doc-sync.py
-python3 tests/check-md-links.py
-node tests/test_tldr_init.js
-node tests/test_symlink_flag.js
-node tests/test_repo_local_config.js
-node tests/test_tldr_stats.js
-node tests/test_tldrcrew_model_overrides.js
-node tests/test_mode_tracker_stdin.js
-node tests/test_mcp_shrink.js
-python3 tests/test_mode_tracker.py
-python3 -m unittest tests.test_compress_safety tests.test_hooks tests.test_validate_inline tests.test_detect tests.test_mode_tracker
+npm test   # runs every suite: installer, JS, and Python gates
 ```
 
 Installer smoke:

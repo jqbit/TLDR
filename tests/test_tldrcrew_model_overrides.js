@@ -9,7 +9,7 @@ const path = require('path');
 const os   = require('os');
 const assert = require('assert');
 
-const { patchFrontmatterModel, resolvePluginRoot, applyOverrides, AGENT_ENV_MAP } =
+const { patchFrontmatterModel, applyOverrides, AGENT_ENV_MAP } =
   require('../src/hooks/tldrcrew-model-overrides');
 
 let passed = 0;
@@ -150,16 +150,6 @@ test('CRLF builder (no model line): inserted model line uses CRLF', () => {
   assert.ok(out.includes('model: sonnet'), 'model line missing in CRLF builder file');
   const strippedCR = out.replace(/\r\n/g, '');
   assert.ok(!strippedCR.includes('\n'), 'mixed line endings in CRLF builder patch');
-});
-
-// ── resolvePluginRoot ──────────────────────────────────────────────────────
-
-console.log('\nresolvePluginRoot\n');
-
-test('resolves to parent of hooks dir', () => {
-  const hooksDir = path.join(os.tmpdir(), 'fake-plugin', 'hooks');
-  const root = resolvePluginRoot(hooksDir);
-  assert.strictEqual(path.basename(root), 'fake-plugin');
 });
 
 // ── applyOverrides ─────────────────────────────────────────────────────────

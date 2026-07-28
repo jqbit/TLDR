@@ -28,7 +28,6 @@
 
 const { spawn } = require('child_process');
 const { compressDescriptionsInPlace, compress } = require('./compress');
-const { getSpawnOptions } = require('./spawn-options');
 
 const args = process.argv.slice(2);
 if (args.length === 0) {
@@ -52,7 +51,12 @@ const LIST_METHODS = new Set([
 ]);
 const idToMethod = new Map();
 
-const upstream = spawn(args[0], args.slice(1), getSpawnOptions());
+// shell:true on Windows so npx/.cmd shims resolve; never elsewhere (injection).
+const upstream = spawn(args[0], args.slice(1), {
+  stdio: ['pipe', 'pipe', 'inherit'],
+  shell: process.platform === 'win32',
+  windowsHide: true,
+});
 
 upstream.on('error', err => {
   process.stderr.write(`tldr-shrink: failed to spawn upstream: ${err.message}\n`);

@@ -54,7 +54,7 @@ Example — "Explain database connection pooling."
 - full: "Pool reuse open DB connections. No new connection per request. Skip handshake overhead."
 - ultra: "Pool reuse open DB connections. No per-request handshake."
 
-> Ultra note: invented abbreviations (cfg/impl/req/res/fn/auth) and causal arrows (→) are banned because they save zero tokens — under both cl100k_base and o200k_base each abbreviation and its full word tokenize to 1 token, and an arrow costs a token that plain juxtaposition avoids (reproduce with `bench/tokenize.js`; rationale from origin project caveman, `docs/HONEST-NUMBERS.md`). Ultra's real savings come from dropping words, not respelling them.
+> Ultra note: invented abbreviations (cfg/impl/req/res/fn/auth) and causal arrows (→) are banned because they save zero tokens — under both cl100k_base and o200k_base each abbreviation and its full word tokenize to 1 token, and an arrow costs a token that plain juxtaposition avoids (rationale from origin project caveman, `docs/HONEST-NUMBERS.md`). Ultra's real savings come from dropping words, not respelling them.
 
 ## Auto-Clarity
 

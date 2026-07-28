@@ -77,9 +77,8 @@ you are paying to use it.**
 2. **The only fully honest test is an A/B**: run the same task with and
    without TLDR and compare your provider's own usage/billing page. That
    number outranks anything this repo prints.
-3. **Reproduce numbers yourself**:
-   [`benchmarks/run.py`](../benchmarks/run.py) (needs an Anthropic API
-   key) and the offline eval harness in [`evals/`](../evals/README.md)
+3. **Reproduce numbers yourself**: the eval harness in
+   [`evals/`](../evals/README.md)
    (`evals/llm_run.py` to generate, `evals/measure.py` to read). No eval
    snapshot is committed to this repository — every number you quote
    should come from your own run.

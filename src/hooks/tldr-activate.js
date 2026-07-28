@@ -22,8 +22,8 @@ const settingsPath = path.join(claudeDir, 'settings.json');
 // it. Standalone installs fall back to the parent of the hooks dir
 // ($CLAUDE_CONFIG_DIR), where agents/ may hold user-managed copies.
 try {
-  const { applyOverrides, resolvePluginRoot } = require('./tldrcrew-model-overrides');
-  applyOverrides(process.env.CLAUDE_PLUGIN_ROOT || resolvePluginRoot(__dirname));
+  const { applyOverrides } = require('./tldrcrew-model-overrides');
+  applyOverrides(process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..'));
 } catch (e) {}
 
 const mode = getDefaultMode();

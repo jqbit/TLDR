@@ -136,7 +136,7 @@ The honest interpretation: v0.18.0 is empirically better on cross-model average;
 
 ## Files for full reproducibility
 
-- `bench/dspy/dspy_optimize_v2.py` — runs the optimization loop
+- `bench/dspy/dspy_optimize.py` — runs the optimization loop
 - `bench/dspy/cross_model_holdout.py` — runs cross-model generation
 - `bench/dspy/cross_model_analyze.py` — runs codex-judge + paired t-tests
 - `bench/dspy/expanded_corpus.py` — generates the probe splits

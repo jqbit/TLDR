@@ -388,9 +388,9 @@ def optimize(seed_prompt: str, train_probes: list, scorer, variant: str,
 
 
 # ── Main ──────────────────────────────────────────────────────────────
-def main(variant: str):
+def main(variant: str, breadth: int = 5, depth: int = 3, out_dir: str | None = None):
     if variant not in {"tldr", "blunt"}:
-        raise SystemExit("Usage: python3 bench/dspy/dspy_optimize.py {tldr|blunt}")
+        raise SystemExit("Usage: python3 bench/dspy/dspy_optimize.py {tldr|blunt} [breadth] [depth]")
 
     splits_path = DSPY_DIR / "probe_splits.json"
     if not splits_path.exists():
@@ -414,10 +414,14 @@ def main(variant: str):
         seed = (ROOT / "TLDR.md").read_text()
         scorer = score_blunt_probe
 
-    optimize(seed, train, scorer, variant, breadth=5, depth=3, out_dir=str(DSPY_DIR))
+    optimize(seed, train, scorer, variant, breadth=breadth, depth=depth,
+             out_dir=out_dir or str(DSPY_DIR))
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        raise SystemExit("Usage: python3 bench/dspy/dspy_optimize.py {tldr|blunt}")
-    main(sys.argv[1])
+        raise SystemExit("Usage: python3 bench/dspy/dspy_optimize.py {tldr|blunt} [breadth] [depth]")
+    # v0.17's "v2" sweep was this with breadth=6 depth=4 into DSPY_DIR/v2.
+    b = int(sys.argv[2]) if len(sys.argv) > 2 else 5
+    d = int(sys.argv[3]) if len(sys.argv) > 3 else 3
+    main(sys.argv[1], b, d, str(DSPY_DIR / "v2") if (b, d) != (5, 3) else None)

@@ -31,10 +31,6 @@ const AGENT_ENV_MAP = [
 // (when present) live at $CLAUDE_CONFIG_DIR/agents/. Callers should prefer
 // process.env.CLAUDE_PLUGIN_ROOT — plugin installs run this hook from
 // <plugin_root>/src/hooks/, where the parent dir holds no agents/.
-function resolvePluginRoot(hookDir) {
-  return path.resolve(hookDir, '..');
-}
-
 // Patch the YAML frontmatter of `content` to set `model: <modelValue>`.
 // Returns the patched string, or the original if no frontmatter or already identical.
 // Rejects `modelValue` strings that contain newlines or control characters.
@@ -106,4 +102,4 @@ function applyOverrides(pluginRoot, env) {
   }
 }
 
-module.exports = { resolvePluginRoot, patchFrontmatterModel, applyOverrides, AGENT_ENV_MAP };
+module.exports = { patchFrontmatterModel, applyOverrides, AGENT_ENV_MAP };

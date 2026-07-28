@@ -288,5 +288,4 @@ module.exports = {
   removeTldrHooks,
   rewriteLegacyManagedHookCommands,
   claudeConfigDir,
-  MANAGED_HOOK_BASENAMES,
 };

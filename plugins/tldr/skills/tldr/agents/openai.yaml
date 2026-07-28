@@ -1,6 +1,0 @@
-interface:
-  display_name: "TLDR"
-  short_description: "Verdict first. Filler never. Full technical accuracy."
-  icon_small: "./assets/tldr-small.svg"
-  icon_large: "./assets/tldr.svg"
-  default_prompt: "Use $tldr to answer verdict-first, cut filler, and preserve exact technical substance."

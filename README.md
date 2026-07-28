@@ -58,7 +58,7 @@ Terse, high-signal responses for AI coding agents — less filler, same accuracy
 </tr>
 </table>
 
-**Same fix. ~60–75% fewer prose tokens in historical benchmarks** (earlier prompt generations; the current prompt has not been rerun) — tools, code, and safety unchanged. Reproduce: [`bench/v0.14-bench.sh`](bench/v0.14-bench.sh) · writeup: [`data/benchmarks.md`](data/benchmarks.md) · honest cost/benefit: [`docs/HONEST-NUMBERS.md`](docs/HONEST-NUMBERS.md).
+**Same fix. ~60–75% fewer prose tokens in historical benchmarks** (earlier prompt generations; the current prompt has not been rerun) — tools, code, and safety unchanged. Writeup: [`data/benchmarks.md`](data/benchmarks.md) · honest cost/benefit: [`docs/HONEST-NUMBERS.md`](docs/HONEST-NUMBERS.md).
 
 ## The prompt — `TLDR.md`
 
@@ -160,7 +160,6 @@ grep -q "^## Prime directive" ~/.hermes/SOUL.md 2>/dev/null && echo "✓ ~/.herm
 - [data/benchmarks.md](data/benchmarks.md)
 - [data/dspy-cross-model-results.md](data/dspy-cross-model-results.md)
 - [data/changelog.md](data/changelog.md)
-- [docs/LAUNCH.md](docs/LAUNCH.md)
 
 ## License
 

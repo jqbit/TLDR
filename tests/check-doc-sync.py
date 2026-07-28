@@ -11,7 +11,6 @@ AGENT_LOCATIONS = ROOT / "data" / "agent-locations.md"
 TLDR = ROOT / "TLDR.md"
 COMMAND = ROOT / "commands" / "tldr.md"
 INSTALL = ROOT / "install.sh"
-BENCH = ROOT / "bench" / "v0.14-bench.sh"
 CITATION = ROOT / ".github" / "CITATION.cff"
 OLD_CITATION = ROOT / "data" / "citations.cff"
 IDEA_TEMPLATE = ROOT / ".github" / "ISSUE_TEMPLATE" / "idea.yml"
@@ -32,7 +31,6 @@ readme = README.read_text(encoding="utf-8")
 agent_locations = AGENT_LOCATIONS.read_text(encoding="utf-8")
 prompt = TLDR.read_text(encoding="utf-8")
 command = COMMAND.read_text(encoding="utf-8")
-bench = BENCH.read_text(encoding="utf-8")
 citation = CITATION.read_text(encoding="utf-8")
 idea_template = IDEA_TEMPLATE.read_text(encoding="utf-8")
 
@@ -175,13 +173,6 @@ expect_contains(claude_md, f"({provider_count} total", "CLAUDE.md agent count")
 
 if not COMMAND.exists():
     fail("commands/tldr.md missing from repo root")
-
-for needle in [
-    'ROOT=${TLDR_BENCH_DIR:-"$HOME/bench-v14"}',
-    '[opencode]="$HOME/.config/opencode/AGENTS.md"',
-    '[gemini]="$HOME/.gemini/AGENTS.md"',
-]:
-    expect_contains(bench, needle, "bench/v0.14-bench.sh")
 
 if OLD_CITATION.exists():
     fail("data/citations.cff should be .github/CITATION.cff for citation tooling")

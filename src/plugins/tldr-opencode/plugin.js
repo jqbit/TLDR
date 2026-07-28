@@ -87,12 +87,6 @@ function opencodeConfigDir() {
 
 const flagPath = path.join(opencodeConfigDir(), '.tldr-active');
 
-function reinforcementLine(mode) {
-  return 'TLDR MODE ACTIVE (' + mode + '). ' +
-    'Drop articles/filler/pleasantries/hedging. Fragments OK. ' +
-    'Code/commits/security: write normal.';
-}
-
 // Parse a prompt for slash-command activation or natural-language toggles.
 // Returns the new mode to write, the literal string 'off' to deactivate, or
 // null when the prompt doesn't change state. Mirrors tldr-mode-tracker.js.
@@ -224,7 +218,9 @@ export const TldrPlugin = async (_ctx) => {
     if (!output || !Array.isArray(output.system)) return;
     const active = readFlag(flagPath);
     if (active && !INDEPENDENT_MODES.has(active)) {
-      output.system.push(reinforcementLine(active));
+      output.system.push('TLDR MODE ACTIVE (' + active + '). ' +
+        'Drop articles/filler/pleasantries/hedging. Fragments OK. ' +
+        'Code/commits/security: write normal.');
     }
   },
   };

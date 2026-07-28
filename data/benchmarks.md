@@ -79,8 +79,8 @@ python3 -m pip install --user dspy
 python3 bench/dspy/expanded_corpus.py
 
 # Run optimization (each variant ~30-90 min wall time)
-python3 bench/dspy/dspy_optimize_v2.py tldr
-python3 bench/dspy/dspy_optimize_v2.py blunt
+python3 bench/dspy/dspy_optimize.py tldr 6 4
+python3 bench/dspy/dspy_optimize.py blunt 6 4
 
 # Cross-model held-out (5 agents)
 python3 bench/dspy/cross_model_holdout.py blunt
@@ -160,11 +160,8 @@ v0.14 carries forward the v0.13.1 shape-rule set and adds the explicit communica
 
 ## Reproducing the bench
 
-```bash
-cd bench
-N_TRIALS=3 bash v0.14-bench.sh         # produces ~/bench-v14/fullbench/{baseline,tldr}/*.log
-node analyze.js                         # writes ~/bench-v14/results/*.json + per-harness table
-node make-charts.js ../data/visualizations ~/bench-v14/results/charts.json
-```
-
-Per-harness invocation cheat-sheet is in `data/methodology.md`.
+The v0.14 bench chain was removed from `bench/` in v0.20 (it targeted a
+local rig that no longer exists and was never rerun after v0.14). The
+scripts are recoverable from git history; per-harness invocations are
+recorded in `data/methodology.md`. Treat the numbers above as a historical
+record. For current measurement use [`evals/`](../evals/).

@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Shell syntax
-        run: bash -n install.sh install-full.sh src/hooks/*.sh
+        run: bash -n install.sh install-full.sh src/hooks/tldr-statusline.sh
       - name: Python gates
         run: |
           for f in tests/*.py; do

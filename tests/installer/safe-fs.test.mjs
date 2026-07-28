@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const { atomicWrite, createSecureTempDir, safeLstat, resolveSafeTarget, safeRmdir } =
+const { atomicWrite, createSecureTempDir, resolveSafeTarget, safeRmdir } =
   require(path.join(root, 'bin', 'lib', 'safe-fs.js'));
 
 test('atomicWrite writes content, creates parent dirs, leaves no temp litter', () => {
@@ -34,20 +34,6 @@ test('atomicWrite overwrites existing file atomically', () => {
     atomicWrite(dest, 'one');
     atomicWrite(dest, 'two');
     assert.equal(fs.readFileSync(dest, 'utf8'), 'two');
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test('safeLstat refuses symlinks, allows regular files', { skip: process.platform === 'win32' }, () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tldr-safefs-'));
-  try {
-    const file = path.join(dir, 'real.txt');
-    fs.writeFileSync(file, 'x');
-    assert.ok(safeLstat(file).isFile());
-    const link = path.join(dir, 'link.txt');
-    fs.symlinkSync(file, link);
-    assert.throws(() => safeLstat(link), /symlink/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

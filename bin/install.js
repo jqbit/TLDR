@@ -348,19 +348,6 @@ function vscodeExtPresent(needle) {
   return false;
 }
 
-function cursorExtPresent(needle) {
-  const dir = path.join(os.homedir(), '.cursor/extensions');
-  if (!fs.existsSync(dir)) return false;
-  const re = new RegExp(needle, 'i');
-  try { return fs.readdirSync(dir).some(e => re.test(e)); } catch (_) { return false; }
-}
-
-function jetbrainsPresent() {
-  const home = os.homedir();
-  return fs.existsSync(path.join(home, 'Library/Application Support/JetBrains'))
-      || fs.existsSync(path.join(home, '.config/JetBrains'));
-}
-
 function jetbrainsPluginPresent(needle) {
   const home = os.homedir();
   const roots = [
@@ -370,21 +357,11 @@ function jetbrainsPluginPresent(needle) {
   const re = new RegExp(needle, 'i');
   for (const r of roots) {
     if (!fs.existsSync(r)) continue;
-    if (walkDir(r, 4).some(p => re.test(path.basename(p)))) return true;
+    let names;
+    try { names = fs.readdirSync(r, { recursive: true }); } catch (_) { continue; }
+    if (names.some(p => re.test(path.basename(p)))) return true;
   }
   return false;
-}
-
-function walkDir(root, depth) {
-  const out = [];
-  if (depth < 0) return out;
-  let entries;
-  try { entries = fs.readdirSync(root, { withFileTypes: true }); } catch (_) { return out; }
-  for (const e of entries) {
-    const full = path.join(root, e.name);
-    if (e.isDirectory()) { out.push(full); out.push(...walkDir(full, depth - 1)); }
-  }
-  return out;
 }
 
 function macAppPresent(name) {
@@ -408,11 +385,8 @@ function detectMatch(spec) {
     switch (kind) {
       case 'command':           ok = hasCmd(val); break;
       case 'dir':               ok = safeStat(val, 'isDirectory'); break;
-      case 'file':              ok = safeStat(val, 'isFile'); break;
       case 'macapp':            ok = macAppPresent(val); break;
       case 'vscode-ext':        ok = vscodeExtPresent(val); break;
-      case 'cursor-ext':        ok = cursorExtPresent(val); break;
-      case 'jetbrains-config':  ok = jetbrainsPresent(); break;
       case 'jetbrains-plugin':  ok = jetbrainsPluginPresent(val); break;
     }
     if (ok) return true;
@@ -474,10 +448,6 @@ function runSpawn(cmd, args, opts, dry) {
 function captureSpawn(cmd, args) {
   try { return spawnXplat(cmd, args, { encoding: 'utf8' }); }
   catch (_) { return { status: 1, stdout: '', stderr: '' }; }
-}
-
-function absoluteNodePath() {
-  return process.execPath;
 }
 
 // ── Per-provider installers ────────────────────────────────────────────────
@@ -590,16 +560,6 @@ function opencodeConfigDir() {
   if (process.env.XDG_CONFIG_HOME) return path.join(process.env.XDG_CONFIG_HOME, 'opencode');
   if (IS_WIN) return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'opencode');
   return path.join(os.homedir(), '.config', 'opencode');
-}
-
-function copyDirRecursive(src, dest) {
-  fs.mkdirSync(dest, { recursive: true });
-  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-    const s = path.join(src, entry.name);
-    const d = path.join(dest, entry.name);
-    if (entry.isDirectory()) copyDirRecursive(s, d);
-    else if (entry.isFile()) fs.copyFileSync(s, d);
-  }
 }
 
 // ── Shared AGENTS.md ruleset writer / stripper ────────────────────────────
@@ -744,7 +704,7 @@ function installNativeAgentsMd(ctx, prov) {
       const dest = path.join(skillsDir, name);
       if (!fs.existsSync(src)) continue;
       if (fs.existsSync(dest) && !opts.force) { note(`  skipped ${dest}/ (exists; --force to overwrite)`); continue; }
-      copyDirRecursive(src, dest);
+      fs.cpSync(src, dest, { recursive: true });
       process.stdout.write(`  installed: ${dest}/\n`);
     }
     if (rulesFile) writeFencedRuleset(rulesFile, repoRoot, opts, note);
@@ -851,7 +811,7 @@ function installOpencode(ctx) {
       const dest = path.join(skillsDir, name);
       if (!fs.existsSync(src)) continue;
       if (fs.existsSync(dest) && !opts.force) { note(`  skipped ${dest}/ (exists; --force to overwrite)`); continue; }
-      copyDirRecursive(src, dest);
+      fs.cpSync(src, dest, { recursive: true });
       process.stdout.write(`  installed: ${dest}/\n`);
     }
 
@@ -966,13 +926,9 @@ function hermesSkillsRoot() {
   return path.join(hermesConfigDir(), 'skills', 'productivity');
 }
 
-// Prefer skills/<name>, fall back to plugins/tldr/skills/<name> (plugin mirror).
 function resolveHermesSkillSrc(repoRoot, skillDir) {
   const primary = path.join(repoRoot, 'skills', skillDir);
-  if (fs.existsSync(primary)) return primary;
-  const mirror = path.join(repoRoot, 'plugins', 'tldr', 'skills', skillDir);
-  if (fs.existsSync(mirror)) return mirror;
-  return null;
+  return fs.existsSync(primary) ? primary : null;
 }
 
 // The managed block body is TLDR.md (repo root) — the same source install.sh
@@ -1058,10 +1014,10 @@ function installHermes(ctx) {
       const destDir = path.join(skillsRoot, skillDir);
       if (srcDir) {
         if (fs.existsSync(destDir)) fs.rmSync(destDir, { recursive: true, force: true });
-        copyDirRecursive(srcDir, destDir);
+        fs.cpSync(srcDir, destDir, { recursive: true });
         note(`  copied ${skillDir} → ${destDir}`);
       } else {
-        warn(`  skill dir not found: skills/${skillDir} (or plugins/tldr/skills/${skillDir})`);
+        warn(`  skill dir not found: skills/${skillDir}`);
       }
     }
 
@@ -1153,7 +1109,7 @@ async function installHooks(ctx) {
       try { fs.copyFileSync(settingsPath, bak, fs.constants.COPYFILE_EXCL); } catch (_) {}
     }
 
-    const node = absoluteNodePath();
+    const node = process.execPath;
     const activate = path.join(hooksDir, 'tldr-activate.js');
     const tracker  = path.join(hooksDir, 'tldr-mode-tracker.js');
     const statusline = path.join(hooksDir, 'tldr-statusline.sh');
@@ -1218,7 +1174,7 @@ function resolveMcpShrinkLaunch(repoRoot) {
   const probe = captureSpawn('npm', ['view', MCP_SHRINK_PKG, 'name']);
   if (probe.status === 0) return ['npx', '-y', MCP_SHRINK_PKG];
   const local = repoRoot && path.join(repoRoot, MCP_SHRINK_LOCAL);
-  if (local && fs.existsSync(local)) return [absoluteNodePath(), local];
+  if (local && fs.existsSync(local)) return [process.execPath, local];
   return null;
 }
 
@@ -1266,7 +1222,7 @@ async function runInit(ctx) {
   if (opts.dryRun) args.push('--dry-run');
   if (opts.force)  args.push('--force');
   if (local && fs.existsSync(local)) {
-    const r = runSpawn(absoluteNodePath(), [local, ...args], null, opts.dryRun);
+    const r = runSpawn(process.execPath, [local, ...args], null, opts.dryRun);
     return (r.status || 0) === 0;
   }
   // Curl-pipe fallback
@@ -1278,7 +1234,7 @@ async function runInit(ctx) {
     const tmpDir = createSecureTempDir('tldr-init-');
     const tmpFile = path.join(tmpDir, 'tldr-init.js');
     await downloadTo(INIT_SCRIPT_URL, tmpFile);
-    const r = child_process.spawnSync(absoluteNodePath(), [tmpFile, ...args], { stdio: 'inherit' });
+    const r = child_process.spawnSync(process.execPath, [tmpFile, ...args], { stdio: 'inherit' });
     try {
       fs.unlinkSync(tmpFile);
       safeRmdir(tmpDir);
@@ -1613,11 +1569,11 @@ async function promptForOnly(detected) {
 function printList(noColor) {
   const c = makeChalk(noColor);
   process.stdout.write(c.orange('🦉 TLDR provider matrix') + '\n\n');
-  process.stdout.write(`  ${pad('ID', 13)} ${pad('AGENT', 22)} INSTALL MECHANISM\n`);
-  process.stdout.write(`  ${pad('--', 13)} ${pad('-----', 22)} -----------------\n`);
+  process.stdout.write(`  ${String('ID').padEnd(13)} ${String('AGENT').padEnd(22)} INSTALL MECHANISM\n`);
+  process.stdout.write(`  ${String('--').padEnd(13)} ${String('-----').padEnd(22)} -----------------\n`);
   for (const p of PROVIDERS) {
     const tag = p.soft ? ' (soft)' : '';
-    process.stdout.write(`  ${pad(p.id, 13)} ${pad(p.label, 22)} ${p.mech}${tag}\n`);
+    process.stdout.write(`  ${String(p.id).padEnd(13)} ${String(p.label).padEnd(22)} ${p.mech}${tag}\n`);
   }
   process.stdout.write('\n');
   process.stdout.write(c.dim('  Defaults: --with-hooks ON, --with-mcp-shrink OFF, --with-init OFF.\n'));
@@ -1625,7 +1581,6 @@ function printList(noColor) {
   process.stdout.write(c.dim('  --minimal turns hooks + init + mcp-shrink off.\n'));
 }
 
-function pad(s, n) { s = String(s); return s + ' '.repeat(Math.max(0, n - s.length)); }
 
 // ── Help ───────────────────────────────────────────────────────────────────
 function printHelp() {

@@ -46,19 +46,6 @@ function atomicWrite(dest, content, mode = 0o600) {
 }
 
 /**
- * Safe lstat that explicitly refuses to follow symlinks.
- * Use when walking directories that could be attacker-controlled
- * (e.g. ~/.claude/ sessions for stats).
- */
-function safeLstat(p) {
-  const st = fs.lstatSync(p);
-  if (st.isSymbolicLink()) {
-    throw new Error(`Refusing to traverse symlink at ${p} (symlink attack mitigation)`);
-  }
-  return st;
-}
-
-/**
  * Resolve a user-supplied target directory safely.
  * Returns the realpath if it exists, otherwise a resolved path.
  * Does NOT throw on traversal for tldr-init (user explicitly chooses target),
@@ -82,7 +69,6 @@ function safeRmdir(dir) {
 module.exports = {
   createSecureTempDir,
   atomicWrite,
-  safeLstat,
   resolveSafeTarget,
   safeRmdir,
 };

@@ -6,7 +6,7 @@
 
 Portions of the multi-agent installer, skills layout, hooks, and the evaluation/benchmark harness derive from:
 
-- **[caveman](https://github.com/JuliusBrussee/caveman)** by Julius Brussee — MIT License. In particular, the eval harness code (`evals/llm_run.py`, `evals/measure.py`, `evals/plot.py`) and the benchmark runner (`benchmarks/run.py`) are adapted from caveman's harness.
+- **[caveman](https://github.com/JuliusBrussee/caveman)** by Julius Brussee — MIT License. In particular, the eval harness code (`evals/llm_run.py`, `evals/measure.py`) is adapted from caveman's harness.
 - **blunt** (ZeroPointNineBar private fork) — MIT License; rebranded and merged into this repository.
 
 ### `TLDR.blunt.md` (retired)

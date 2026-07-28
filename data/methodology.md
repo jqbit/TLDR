@@ -99,7 +99,7 @@ Paired t-test per agent (matched by held-out probe). Reported with p-values, eff
 ```bash
 python3 -m pip install --user dspy
 python3 bench/dspy/expanded_corpus.py
-python3 bench/dspy/dspy_optimize_v2.py {tldr|blunt}
+python3 bench/dspy/dspy_optimize.py {tldr|blunt} 6 4
 python3 bench/dspy/cross_model_holdout.py {tldr|blunt}
 python3 bench/dspy/cross_model_analyze.py {tldr|blunt}
 ```
@@ -171,9 +171,9 @@ The variant that wins on 1, then 2, then 3, ... is promoted.
 
 ## Reproducibility
 
-- `bench/v0.14-bench.sh` — baseline + TLDR.md phases, per-harness streams.
-- `bench/tokenize.js` — strip + tokenize one log.
-- `bench/analyze.js` — per-harness reduction + compliance + cell matrix.
-- `bench/make-charts.js` — emit SVG bar/heatmap/line charts.
-
-Sample run: `cd bench && N_TRIALS=3 bash v0.14-bench.sh && node analyze.js && node make-charts.js ../data/visualizations ~/bench-v14/results/charts.json`.
+The v0.14 bench chain (`v0.14-bench.sh`, `tokenize.js`, `analyze.js`,
+`make-charts.js`) was removed from `bench/` in v0.20 — it drove a local
+harness rig that no longer exists and had not been rerun since v0.14. The
+scripts remain in git history if you need the exact procedure; the numbers
+above are a historical record, not a live reproduction target. For current
+measurement use [`evals/`](../evals/).

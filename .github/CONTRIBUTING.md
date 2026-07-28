@@ -21,9 +21,9 @@ plugin, Gemini extension, Cursor/Windsurf/Cline rule files, `npx skills` for
 the long tail). A single Node installer at `bin/install.js` detects which
 agents are on the user's machine and installs the right thing for each.
 
-Sources of truth live at the **top level** of the repo. Agent-specific
-copies live under `plugins/tldr/` and similar mirror dirs — those are
-**rebuilt by CI** and edits there are reverted.
+Sources of truth live at the **top level** of the repo. There are no
+checked-in mirrors: `skills/`, `agents/`, and `commands/` are the only
+copies, and the installer reads them directly.
 
 ---
 
@@ -46,27 +46,6 @@ copies live under `plugins/tldr/` and similar mirror dirs — those are
 | MCP shrink server | `src/mcp-servers/tldr-shrink/` |
 
 That's it. Every other markdown file with `SKILL.md` in the path is a copy.
-
----
-
-## What NOT to edit (CI-generated mirrors)
-
-Edits to these files are wiped by the next CI run. The
-`.github/workflows/sync-skill.yml` job rebuilds them from the sources above
-on every push to `main`.
-
-| Path | Rebuilt from |
-|------|--------------|
-| `plugins/tldr/skills/tldr/SKILL.md` | `skills/tldr/SKILL.md` |
-| `plugins/tldr/skills/tldr-compress/{SKILL.md, scripts/}` | `skills/tldr-compress/{SKILL.md, scripts/}` |
-| `plugins/tldr/skills/tldrcrew/SKILL.md` | `skills/tldrcrew/SKILL.md` |
-| `plugins/tldr/agents/tldrcrew-*.md` | `agents/tldrcrew-*.md` |
-| `dist/tldr.skill` | ZIP of `skills/tldr/` (gitignored; rebuilt by CI on each push to `main`) |
-
-`tldr-commit`, `tldr-review`, `tldr-help`, and `tldr-stats` are **not** mirrored under `plugins/tldr/skills/` by CI. Claude Code reaches them through the standalone hook + skill install path and `npx skills` carries them to other agents. If you see `plugins/tldr/skills/tldr-stats/` checked in, treat it as a legacy hand-committed copy — the workflow in `.github/workflows/sync-skill.yml` does not touch it.
-
-When in doubt: if the file lives under `plugins/`, `dist/`, or any agent
-dotdir mirror, it's a build artifact. Edit the top-level source instead.
 
 ---
 
@@ -108,7 +87,6 @@ merging.
    ```
 2. Create `skills/<name>/README.md` — human-facing summary, install hint, example.
 3. Add `skills/<name>/scripts/` if the skill ships helpers (Python or Node).
-4. If the skill should be in the Claude Code plugin, add a sync step to `.github/workflows/sync-skill.yml` so CI mirrors it into `plugins/tldr/skills/<name>/`.
 5. If it's user-invocable as a slash command, add a row to the slash-command table in `README.md` and `INSTALL.md`.
 6. Add an eval prompt to `evals/prompts/en.txt` if you want the eval harness to score it.
 
@@ -144,7 +122,6 @@ gate the whole suite on optional creds.
 Benchmarks hit the real Claude API and record raw token counts:
 
 ```bash
-uv run python benchmarks/run.py     # needs ANTHROPIC_API_KEY in .env.local
 ```
 
 Evals are a three-arm offline harness (`__baseline__`, `__terse__`, each skill):
@@ -168,7 +145,6 @@ relabel another project's data.
 - **One concern per PR.** A README copy-edit and an installer fix go in separate PRs.
 - **Update `package.json` `files`** if you add a new top-level directory the installer needs to ship to npm. Files outside that array don't get published.
 - **Show before/after** for prose changes to any `SKILL.md`. One sentence on why the new wording is better.
-- **Mention the CI sync.** If you edited a source-of-truth file, note it: "CI will resync `plugins/tldr/skills/...` on merge."
 
 PR descriptions don't need to be long. TLDR style fine. Just say what change, why.
 

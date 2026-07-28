@@ -4,7 +4,7 @@ Custom DSPy-style instruction-evolution loop for optimizing the single shipped T
 
 ## What it does
 
-1. **Optimization** (`dspy_optimize_v2.py`) — COPRO-style instruction evolution. At each round, a meta-LM proposes N variations of the current best prompt; each is evaluated on the train set; top-K seed the next round. No few-shot demos added (keeps prompts short).
+1. **Optimization** (`dspy_optimize.py`) — COPRO-style instruction evolution. At each round, a meta-LM proposes N variations of the current best prompt; each is evaluated on the train set; top-K seed the next round. No few-shot demos added (keeps prompts short).
 2. **Cross-model held-out** (`cross_model_holdout.py`) — generates responses to held-out probes using 5 agent CLIs (claude, codex, cursor-agent, gemini, opencode). Uses prepend-to-user-message for uniformity across agents that don't expose system-prompt injection.
 3. **Independent judge analysis** (`cross_model_analyze.py`) — uses codex (different model family from the typical generator) to judge pushback, agreement, informativeness. Aggregates per-agent and runs paired t-tests.
 
@@ -15,10 +15,9 @@ Custom DSPy-style instruction-evolution loop for optimizing the single shipped T
 | `dspy_claude_lm.py` | Custom `dspy.LM` subclass wrapping `claude -p` (no API key needed) |
 | `expanded_corpus.py` | Probe corpus (n=210) with train/test splits |
 | `dspy_optimize.py` | Core optimization loop + scorers (`score_tldr_probe`, `score_blunt_probe`) |
-| `dspy_optimize_v2.py` | Entry point — runs optimization with v0.18 hyperparameters |
+| `dspy_optimize.py` | Entry point — `dspy_optimize.py {tldr|blunt} [breadth] [depth]` |
 | `cross_model_holdout.py` | Cross-model generation across 5 agents |
 | `cross_model_analyze.py` | Codex-as-judge analysis + paired t-tests |
-| `dspy_holdout_eval.py` | Single-model held-out evaluator (claude only — used in v0.17) |
 
 ## Reproduce
 
@@ -35,7 +34,7 @@ python3 bench/dspy/expanded_corpus.py
 
 # 3. Run optimization (~30-90 min wall time, ~1500 calls)
 # Uses TLDR.md as the seed.
-python3 bench/dspy/dspy_optimize_v2.py tldr
+python3 bench/dspy/dspy_optimize.py tldr
 # → /tmp/tldr-test/dspy/v2/tldr_best.md
 # → /tmp/tldr-test/dspy/v2/tldr_history.json
 

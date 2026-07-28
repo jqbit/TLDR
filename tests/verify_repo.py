@@ -123,25 +123,7 @@ def verify_skill_frontmatter_upload_compatibility() -> None:
 
 
 def verify_synced_files() -> None:
-    section("Synced Files")
-    skill_source = ROOT / "skills/tldr/SKILL.md"
-
-    skill_copies = [
-        ROOT / "plugins/tldr/skills/tldr/SKILL.md",
-    ]
-    for copy in skill_copies:
-        ensure(
-            copy.read_text(encoding="utf-8") == skill_source.read_text(encoding="utf-8"),
-            f"Skill copy mismatch: {copy}",
-        )
-
-    with zipfile.ZipFile(ROOT / "dist" / "tldr.skill") as archive:
-        ensure("tldr/SKILL.md" in archive.namelist(), "tldr.skill missing tldr/SKILL.md")
-        ensure(
-            archive.read("tldr/SKILL.md").decode("utf-8")
-            == skill_source.read_text(encoding="utf-8"),
-            "tldr.skill payload mismatch",
-        )
+    section("Entrypoints")
 
     ensure(
         (ROOT / "bin" / "install.js").exists(),
@@ -152,39 +134,7 @@ def verify_synced_files() -> None:
         "bin/lib/settings.js missing — installer would crash on JSONC settings.json",
     )
 
-    print("Synced copies, TLDR.skill zip, and installer entrypoints OK")
-
-
-def verify_skills_lock() -> None:
-    section("Skills Lock")
-
-    lock = read_json(ROOT / "skills-lock.json")
-    ensure(
-        isinstance(lock, dict) and isinstance(lock.get("skills"), dict) and lock["skills"],
-        "skills-lock.json must contain a non-empty skills map",
-    )
-    for name, entry in lock["skills"].items():
-        ensure(
-            entry.get("source") == "0p9b/TLDR",
-            f"skills-lock.json: {name} source must be 0p9b/TLDR (self-contained repo, no upstream pins)",
-        )
-        skill_path = ROOT / entry["skillPath"]
-        ensure(skill_path.exists(), f"skills-lock.json: {entry['skillPath']} missing")
-        actual = hashlib.sha256(skill_path.read_bytes()).hexdigest()
-        ensure(
-            actual == entry.get("computedHash"),
-            f"skills-lock.json hash mismatch for {name}: recorded {entry.get('computedHash')}, "
-            f"actual {actual}. If the edit to {entry['skillPath']} was intentional, "
-            f"update computedHash to the actual value.",
-        )
-        mirror = ROOT / "plugins" / "tldr" / entry["skillPath"]
-        if mirror.exists():
-            ensure(
-                mirror.read_bytes() == skill_path.read_bytes(),
-                f"Mirror out of sync: plugins/tldr/{entry['skillPath']} != {entry['skillPath']}",
-            )
-
-    print(f"skills-lock.json hashes verified ({len(lock['skills'])} skill(s))")
+    print("Installer entrypoints OK")
 
 
 def verify_hook_checksums() -> None:
@@ -220,13 +170,10 @@ def verify_manifests_and_syntax() -> None:
     section("Manifests And Syntax")
 
     manifest_paths = [
-        ROOT / ".agents/plugins/marketplace.json",
         ROOT / ".claude-plugin/plugin.json",
         ROOT / ".claude-plugin/marketplace.json",
         ROOT / ".codex/hooks.json",
         ROOT / "gemini-extension.json",
-        ROOT / "plugins/tldr/plugin.json",
-        ROOT / "plugins/tldr/.codex-plugin/plugin.json",
     ]
     for path in manifest_paths:
         read_json(path)
@@ -235,46 +182,23 @@ def verify_manifests_and_syntax() -> None:
     run(["node", "--check", "src/hooks/tldr-activate.js"])
     run(["node", "--check", "src/hooks/tldr-mode-tracker.js"])
     run(["node", "--check", "src/hooks/tldrcrew-model-overrides.js"])
-    run(["node", "--check", "src/mcp-servers/tldr-shrink/spawn-options.js"])
     run(["node", "--check", "bin/install.js"])
     run(["node", "--check", "bin/lib/opencode-agent.js"])
     run(["node", "--check", "bin/lib/settings.js"])
-    run(["bash", "-n", "src/hooks/install.sh"])
-    run(["bash", "-n", "src/hooks/uninstall.sh"])
     run(["bash", "-n", "src/hooks/tldr-statusline.sh"])
 
-    # Ensure install/uninstall scripts include tldr-config.js
-    install_sh = (ROOT / "src/hooks/install.sh").read_text(encoding="utf-8")
-    uninstall_sh = (ROOT / "src/hooks/uninstall.sh").read_text(encoding="utf-8")
-    ensure("tldr-config.js" in install_sh, "install.sh missing tldr-config.js")
-    ensure("tldr-config.js" in uninstall_sh, "uninstall.sh missing tldr-config.js")
     ensure((ROOT / "commands/tldr.toml").exists(), "commands/tldr.toml missing — bare /tldr TOML command not represented")
     ensure((ROOT / "bin/lib/opencode-agent.js").exists(), "opencode agent sanitizer missing")
-    ensure((ROOT / "src/mcp-servers/tldr-shrink/spawn-options.js").exists(), "tldr-shrink spawn-options.js missing")
-    bench = (ROOT / "benchmarks/run.py").read_text(encoding="utf-8")
-    ensure('skills" / "tldr" / "SKILL.md' in bench, "benchmarks/run.py must read skills/tldr/SKILL.md")
 
     print("JSON manifests and JS/bash syntax OK")
 
 
 def verify_powershell_static() -> None:
     section("PowerShell Static Checks")
-    install_text = (ROOT / "src/hooks/install.ps1").read_text(encoding="utf-8")
-    uninstall_text = (ROOT / "src/hooks/uninstall.ps1").read_text(encoding="utf-8")
     statusline_text = (ROOT / "src/hooks/tldr-statusline.ps1").read_text(encoding="utf-8")
-
-    ensure("tldr-config.js" in install_text, "install.ps1 missing tldr-config.js")
-    ensure("tldr-config.js" in uninstall_text, "uninstall.ps1 missing tldr-config.js")
-    ensure("tldr-statusline.ps1" in install_text, "install.ps1 missing statusline.ps1")
-    ensure("tldr-statusline.ps1" in uninstall_text, "uninstall.ps1 missing statusline.ps1")
-    ensure("-AsHashtable" not in install_text, "install.ps1 should stay compatible with Windows PowerShell 5.1")
-    ensure(
-        "powershell -ExecutionPolicy Bypass -File" in install_text,
-        "install.ps1 missing PowerShell statusline command",
-    )
     ensure("[TLDR" in statusline_text, "tldr-statusline.ps1 missing badge output")
 
-    print("Windows install path statically wired")
+    print("Windows statusline wired")
 
 
 def load_compress_modules():
@@ -309,7 +233,7 @@ def verify_compress_cli() -> None:
     section("Compress CLI")
 
     skip_result = run(
-        ["python3", "-m", "scripts", "../../src/hooks/install.sh"],
+        ["python3", "-m", "scripts", "../../install.sh"],
         cwd=ROOT / "skills/tldr-compress",
         check=False,
     )
@@ -331,150 +255,16 @@ def verify_compress_cli() -> None:
     print("Compress CLI skip/error paths OK")
 
 
-def verify_hook_install_flow() -> None:
-    section("Claude Hook Flow")
-
-    ensure(shutil.which("node") is not None, "node is required for hook verification")
-    ensure(shutil.which("bash") is not None, "bash is required for hook verification")
-
-    with tempfile.TemporaryDirectory(prefix="tldr-verify-") as temp_root:
-        temp_root_path = Path(temp_root)
-        home = temp_root_path / "home"
-        claude_dir = home / ".claude"
-        claude_dir.mkdir(parents=True)
-
-        existing_settings = {
-            "statusLine": {"type": "command", "command": "bash /tmp/existing-statusline.sh"},
-            "hooks": {"Notification": [{"hooks": [{"type": "command", "command": "echo keep-me"}]}]},
-        }
-        (claude_dir / "settings.json").write_text(json.dumps(existing_settings, indent=2) + "\n")
-        hook_env = {"HOME": shell_path(home), "CLAUDE_CONFIG_DIR": shell_path(claude_dir)}
-
-        run(["bash", "src/hooks/install.sh"], env=hook_env)
-
-        settings = read_json(claude_dir / "settings.json")
-        hooks = settings["hooks"]
-        ensure(settings["statusLine"]["command"] == "bash /tmp/existing-statusline.sh", "install.sh clobbered existing statusLine")
-        ensure("SessionStart" in hooks, "SessionStart hook missing after install")
-        ensure("UserPromptSubmit" in hooks, "UserPromptSubmit hook missing after install")
-
-        activate = run(
-            ["node", "src/hooks/tldr-activate.js"],
-            env=hook_env,
-        )
-        ensure("TLDR MODE ACTIVE" in activate.stdout, "activation output missing TLDR banner")
-        ensure("STATUSLINE SETUP NEEDED" not in activate.stdout, "activation should stay quiet when custom statusline exists")
-        ensure((claude_dir / ".tldr-active").read_text(encoding="utf-8") == "full", "activation flag should default to full")
-
-        # Test configurable default mode via TLDR_DEFAULT_MODE env var
-        activate_custom = run(
-            ["node", "src/hooks/tldr-activate.js"],
-            env={**hook_env, "TLDR_DEFAULT_MODE": "ultra"},
-        )
-        ensure("TLDR MODE ACTIVE" in activate_custom.stdout, "activation with custom default missing banner")
-        ensure(
-            (claude_dir / ".tldr-active").read_text(encoding="utf-8") == "ultra",
-            "TLDR_DEFAULT_MODE=ultra should set flag to ultra",
-        )
-        # Test "off" mode — activation skipped, flag removed
-        activate_off = run(
-            ["node", "src/hooks/tldr-activate.js"],
-            env={**hook_env, "TLDR_DEFAULT_MODE": "off"},
-        )
-        ensure("TLDR MODE ACTIVE" not in activate_off.stdout, "off mode should not emit TLDR banner")
-        ensure(not (claude_dir / ".tldr-active").exists(), "off mode should remove flag file")
-
-        # Test mode tracker with /tldr when default is off — should NOT write flag
-        subprocess.run(
-            ["node", "src/hooks/tldr-mode-tracker.js"],
-            cwd=ROOT,
-            env={**os.environ, **hook_env, "TLDR_DEFAULT_MODE": "off"},
-            text=True,
-            encoding="utf-8",
-            input='{"prompt":"/tldr"}',
-            capture_output=True,
-            check=True,
-        )
-        ensure(not (claude_dir / ".tldr-active").exists(), "/tldr with off default should not write flag")
-
-        # Reset back to full for subsequent tests
-        (claude_dir / ".tldr-active").write_text("full")
-
-        run(
-            ["node", "src/hooks/tldr-mode-tracker.js"],
-            env=hook_env,
-            check=True,
-        )
-
-        ultra_prompt = subprocess.run(
-            ["node", "src/hooks/tldr-mode-tracker.js"],
-            cwd=ROOT,
-            env={**os.environ, **hook_env},
-            text=True,
-            encoding="utf-8",
-            input='{"prompt":"/tldr ultra"}',
-            capture_output=True,
-            check=True,
-        )
-        ensure(
-            "TLDR MODE ACTIVE (ultra)" in ultra_prompt.stdout,
-            "mode tracker should emit active-mode reinforcement",
-        )
-        ensure((claude_dir / ".tldr-active").read_text(encoding="utf-8") == "ultra", "mode tracker did not record ultra")
-
-        subprocess.run(
-            ["node", "src/hooks/tldr-mode-tracker.js"],
-            cwd=ROOT,
-            env={**os.environ, **hook_env},
-            text=True,
-            encoding="utf-8",
-            input='{"prompt":"normal mode"}',
-            capture_output=True,
-            check=True,
-        )
-        ensure(not (claude_dir / ".tldr-active").exists(), "normal mode should remove flag file")
-
-        (claude_dir / ".tldr-active").write_text("wenyan-ultra")
-        statusline = run(
-            ["bash", "src/hooks/tldr-statusline.sh"],
-            env=hook_env,
-        )
-        ensure("[TLDR:WENYAN-ULTRA]" in statusline.stdout, "statusline badge output mismatch")
-
-        reinstall = run(["bash", "src/hooks/install.sh"], env=hook_env)
-        ensure("Nothing to do" in reinstall.stdout, "install.sh should be idempotent")
-
-        run(["bash", "src/hooks/uninstall.sh"], env=hook_env)
-        settings_after = read_json(claude_dir / "settings.json")
-        ensure(settings_after == existing_settings, "uninstall.sh did not restore non-TLDR settings")
-        ensure(not (claude_dir / ".tldr-active").exists(), "uninstall.sh should remove flag file")
-
-    with tempfile.TemporaryDirectory(prefix="tldr-verify-fresh-") as temp_root:
-        home = Path(temp_root) / "home"
-        claude_dir = home / ".claude"
-        hook_env = {"HOME": shell_path(home), "CLAUDE_CONFIG_DIR": shell_path(claude_dir)}
-        run(["bash", "src/hooks/install.sh"], env=hook_env)
-        settings = read_json(claude_dir / "settings.json")
-        ensure("statusLine" in settings, "fresh install should configure statusline")
-        activate = run(["node", "src/hooks/tldr-activate.js"], env=hook_env)
-        ensure("STATUSLINE SETUP NEEDED" not in activate.stdout, "fresh install should not nudge for statusline")
-        run(["bash", "src/hooks/uninstall.sh"], env=hook_env)
-        ensure(read_json(claude_dir / "settings.json") == {}, "fresh uninstall should leave empty settings")
-
-    print("Claude hook install/uninstall flow OK")
-
 
 def main() -> int:
     checks = [
         verify_skill_frontmatter_upload_compatibility,
         verify_synced_files,
-        verify_skills_lock,
         verify_hook_checksums,
         verify_manifests_and_syntax,
         verify_powershell_static,
         verify_compress_fixtures,
         verify_compress_cli,
-        verify_hook_install_flow,
     ]
 
     try:
