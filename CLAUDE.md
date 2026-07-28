@@ -21,6 +21,7 @@ TLDR/
 ├── install-full.sh / install.ps1   # full-installer shims
 ├── src/hooks/                      # Claude hook/statusline stack
 ├── src/plugins/tldr-opencode/      # opencode native plugin source
+├── src/plugins/tldr-pi/            # Pi Coding Agent extension source
 ├── src/mcp-servers/tldr-shrink/    # optional MCP description compressor
 ├── docs/assets/                    # mascot/social/favicon assets
 └── tests/                          # installer + safety + smoke tests
@@ -75,6 +76,17 @@ builds each schema; `installAgentHooks` in `bin/install.js` copies the hook scri
 | grok | `~/.grok/hooks/tldr.json` | `SessionStart` + `UserPromptSubmit` | raw stdout (Claude-shaped) |
 | cursor | `~/.cursor/hooks.json` | `sessionStart` | `{"additional_context": ...}` |
 | antigravity | `~/.gemini/config/hooks.json` | `PreInvocation` | `{"injectSteps":[{"ephemeralMessage":...}]}` |
+
+Pi has no JSON hook config — extensions are JS modules declared by a package
+manifest (`pi.extensions`). `src/plugins/tldr-pi/` installs to
+`~/.pi/agent/extensions/tldr/` and is registered by shelling out to
+`pi install <dir>` (and `pi remove` on uninstall) so Pi's `settings.json`
+package list is never hand-edited. Injection is `before_agent_start` returning
+`{ systemPrompt }`, appended to Pi's own prompt.
+
+The ruleset text itself lives in `src/hooks/tldr-instructions.js` (SKILL.md read
++ intensity filter + standalone fallback), shared by the SessionStart hook and
+the Pi extension so the filter exists once.
 
 `tldr-activate.js` picks the envelope from `--format=`; both hook scripts take
 `--config-dir=` so each agent keeps its own `.tldr-active` flag. Merging is by

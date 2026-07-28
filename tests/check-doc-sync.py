@@ -70,7 +70,7 @@ for path, needles in SAFETY_VARIANTS:
 # weakens every standalone install, so pin each with the wording it actually uses.
 FALLBACK_RULESETS = [
     (
-        ROOT / "src" / "hooks" / "tldr-activate.js",
+        ROOT / "src" / "hooks" / "tldr-instructions.js",
         [
             "Default: 1 sentence.",
             "Default target: 3 words.",

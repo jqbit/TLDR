@@ -1,0 +1,10 @@
+{
+  "name": "tldr-pi",
+  "version": "0.20.0",
+  "private": true,
+  "type": "module",
+  "description": "TLDR extension for the Pi Coding Agent — verdict-first output, mode tracking.",
+  "pi": {
+    "extensions": ["./index.js"]
+  }
+}

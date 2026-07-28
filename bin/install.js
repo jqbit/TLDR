@@ -61,6 +61,7 @@ const HERMES_SKILL_DIRS = [
 const HOOK_FILES = [
   'package.json',
   'tldr-config.js',
+  'tldr-instructions.js',
   'tldr-activate.js',
   'tldr-mode-tracker.js',
   'tldr-stats.js',
@@ -258,7 +259,7 @@ const PROVIDERS = [
   { id: 'openclaw',   label: 'OpenClaw',            mech: 'workspace skill + SOUL.md',     detect: 'command:openclaw||dir:$HOME/.openclaw/workspace' },
   { id: 'hermes',     label: 'Hermes Agent',        mech: 'native hermes SOUL.md + productivity skills',   detect: 'command:hermes' },
   { id: 'codex',      label: 'Codex CLI',           mech: 'native AGENTS.md + skill',       detect: 'command:codex',           native: { dir: '$HOME/.codex',    rules: 'AGENTS.md', skills: 'skills', hooks: { file: 'hooks.json', style: 'claude', trust: 'run /hooks in Codex to trust the new TLDR hooks (Codex skips untrusted hooks)' } } },
-  { id: 'pi',         label: 'Pi Coding Agent',     mech: 'native AGENTS.md + skill',       detect: 'command:pi',              native: { dir: '$HOME/.pi/agent', rules: 'AGENTS.md', skills: 'skills' } },
+  { id: 'pi',         label: 'Pi Coding Agent',     mech: 'native AGENTS.md + skill',       detect: 'command:pi',              native: { dir: '$HOME/.pi/agent', rules: 'AGENTS.md', skills: 'skills', piExtension: true } },
   { id: 'grok',       label: 'Grok Build CLI',      mech: 'native AGENTS.md + skill',       detect: 'command:grok',            native: { dir: '$HOME/.grok',     rules: 'AGENTS.md', skills: 'skills', hooks: { file: 'hooks/tldr.json', style: 'claude' } } },
   // oh-my-pi (omp): loads a user-scope AGENTS.md and auto-discovers skills from
   // <agentDir>/skills. Default agent dir is ~/.omp/agent; it becomes
@@ -672,7 +673,47 @@ function stripFencedRuleset(agentsMd, opts, note) {
 // so tldr-activate.js's `../../skills/tldr/SKILL.md` lookup resolves to the
 // skill suite we just installed — then merge our entries into the agent's hook
 // config, preserving anything the user or another tool already put there.
-const AGENT_HOOK_SCRIPTS = ['package.json', 'tldr-config.js', 'tldr-activate.js', 'tldr-mode-tracker.js', 'tldrcrew-model-overrides.js'];
+const AGENT_HOOK_SCRIPTS = ['package.json', 'tldr-config.js', 'tldr-instructions.js', 'tldr-activate.js', 'tldr-mode-tracker.js', 'tldrcrew-model-overrides.js'];
+
+// Pi has no JSON hook file — extensions are JS modules registered through its
+// own package manifest. Copy the extension next to the shared hook scripts,
+// then let `pi install <dir>` write settings.json so we never hand-edit Pi's
+// package list.
+function copyHookScripts(repoRoot, dir) {
+  const hooksDir = path.join(dir, 'hooks', 'tldr');
+  fs.mkdirSync(hooksDir, { recursive: true });
+  for (const f of AGENT_HOOK_SCRIPTS) {
+    const src = path.join(repoRoot, 'src', 'hooks', f);
+    if (fs.existsSync(src)) fs.copyFileSync(src, path.join(hooksDir, f));
+  }
+  return hooksDir;
+}
+
+function installPiExtension(ctx, dir) {
+  const { note, warn, opts, repoRoot } = ctx;
+  const src = path.join(repoRoot, 'src', 'plugins', 'tldr-pi');
+  if (!fs.existsSync(src)) return;
+  const dest = path.join(dir, 'extensions', 'tldr');
+
+  if (opts.dryRun) {
+    note(`  would install ${AGENT_HOOK_SCRIPTS.length} hook scripts into ${path.join(dir, 'hooks', 'tldr')}/`);
+    note(`  would install Pi extension into ${dest}/`);
+    note(`  would run: pi install ${dest}`);
+    return;
+  }
+  try {
+    copyHookScripts(repoRoot, dir);   // extension requires tldr-config/-instructions
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.cpSync(src, dest, { recursive: true });
+    process.stdout.write(`  installed: ${dest}/\n`);
+    const r = runSpawn('pi', ['install', dest], null, false);
+    if ((r.status || 0) !== 0) {
+      warn('  `pi install` failed — register manually: pi install ' + dest);
+    }
+  } catch (e) {
+    warn('  Pi extension install failed: ' + ((e && e.message) || e));
+  }
+}
 
 function installAgentHooks(ctx, prov, dir) {
   const { note, warn, opts, repoRoot } = ctx;
@@ -694,11 +735,7 @@ function installAgentHooks(ctx, prov, dir) {
   }
 
   try {
-    fs.mkdirSync(hooksDir, { recursive: true });
-    for (const f of AGENT_HOOK_SCRIPTS) {
-      const src = path.join(repoRoot, 'src', 'hooks', f);
-      if (fs.existsSync(src)) fs.copyFileSync(src, path.join(hooksDir, f));
-    }
+    copyHookScripts(repoRoot, dir);
 
     let existing = {};
     if (fs.existsSync(cfgPath)) {
@@ -757,6 +794,7 @@ function installNativeAgentsMd(ctx, prov) {
     else note(noRulesNote);
     note(`  would copy ${OPENCODE_SKILL_DIRS.length} skill dirs into ${skillsDir}/`);
     if (opts.withHooks) installAgentHooks(ctx, prov, dir);
+    if (opts.withHooks && prov.native.piExtension) installPiExtension(ctx, dir);
     results.installed.push(prov.id);
     process.stdout.write('\n');
     return;
@@ -778,6 +816,7 @@ function installNativeAgentsMd(ctx, prov) {
     if (rulesFile) writeFencedRuleset(rulesFile, repoRoot, opts, note);
     else note(noRulesNote);
     if (opts.withHooks) installAgentHooks(ctx, prov, dir);
+    if (opts.withHooks && prov.native.piExtension) installPiExtension(ctx, dir);
     results.installed.push(prov.id);
   } catch (e) {
     warn(`  ${prov.label} install failed: ` + (e && e.message || e));
@@ -1621,6 +1660,25 @@ function uninstall(ctx) {
       if (fs.existsSync(hookScripts)) {
         if (!opts.dryRun) { try { fs.rmSync(hookScripts, { recursive: true, force: true }); } catch (_) {} }
         note(`  removed ${hookScripts}`);
+        touched = true;
+      }
+    }
+    if (prov.native.piExtension) {
+      const extDir = path.join(ndir, 'extensions', 'tldr');
+      if (fs.existsSync(extDir)) {
+        // `pi remove` drops the settings.json entry; deleting the dir alone
+        // would leave Pi pointing at a missing package.
+        if (!opts.dryRun) {
+          runSpawn('pi', ['remove', extDir], null, false);
+          try { fs.rmSync(extDir, { recursive: true, force: true }); } catch (_) {}
+        }
+        note(`  removed ${extDir}`);
+        touched = true;
+      }
+      const piHooks = path.join(ndir, 'hooks', 'tldr');
+      if (fs.existsSync(piHooks)) {
+        if (!opts.dryRun) { try { fs.rmSync(piHooks, { recursive: true, force: true }); } catch (_) {} }
+        note(`  removed ${piHooks}`);
         touched = true;
       }
     }
