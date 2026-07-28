@@ -696,15 +696,20 @@ function installPiExtension(ctx, dir) {
   const dest = path.join(dir, 'extensions', 'tldr');
 
   if (opts.dryRun) {
-    note(`  would install ${AGENT_HOOK_SCRIPTS.length} hook scripts into ${path.join(dir, 'hooks', 'tldr')}/`);
-    note(`  would install Pi extension into ${dest}/`);
+    note(`  would install Pi extension (+${AGENT_HOOK_SCRIPTS.length} shared modules) into ${dest}/`);
     note(`  would run: pi install ${dest}`);
     return;
   }
   try {
-    copyHookScripts(repoRoot, dir);   // extension requires tldr-config/-instructions
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.cpSync(src, dest, { recursive: true });
+    // Shared modules live INSIDE the extension: Pi warns about a global hooks/.
+    const lib = path.join(dest, 'lib');
+    fs.mkdirSync(lib, { recursive: true });
+    for (const f of AGENT_HOOK_SCRIPTS) {
+      const s = path.join(repoRoot, 'src', 'hooks', f);
+      if (fs.existsSync(s)) fs.copyFileSync(s, path.join(lib, f));
+    }
     process.stdout.write(`  installed: ${dest}/\n`);
     const r = runSpawn('pi', ['install', dest], null, false);
     if ((r.status || 0) !== 0) {
@@ -1675,9 +1680,14 @@ function uninstall(ctx) {
         note(`  removed ${extDir}`);
         touched = true;
       }
+      // Older installs put shared modules in <dir>/hooks/tldr/; Pi warns about a
+      // global hooks/ dir, so remove it (and the dir itself when we emptied it).
       const piHooks = path.join(ndir, 'hooks', 'tldr');
       if (fs.existsSync(piHooks)) {
-        if (!opts.dryRun) { try { fs.rmSync(piHooks, { recursive: true, force: true }); } catch (_) {} }
+        if (!opts.dryRun) {
+          try { fs.rmSync(piHooks, { recursive: true, force: true }); } catch (_) {}
+          try { fs.rmdirSync(path.join(ndir, 'hooks')); } catch (_) { /* non-empty: leave it */ }
+        }
         note(`  removed ${piHooks}`);
         touched = true;
       }

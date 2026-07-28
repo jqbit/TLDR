@@ -16,10 +16,12 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
 
-// Installed layout: <dir>/extensions/tldr/index.js next to <dir>/hooks/tldr/.
-// Repo layout: src/plugins/tldr-pi/index.js next to src/hooks/.
+// Installed layout: <dir>/extensions/tldr/{index.js,lib/}. Pi treats a global
+// `hooks/` dir as a legacy extensions dir and warns on every start, so the
+// shared modules ship inside the extension instead.
+// Repo layout: src/plugins/tldr-pi/index.js alongside src/hooks/.
 function loadShared(name) {
-  for (const rel of [join('..', '..', 'hooks', 'tldr', name), join('..', '..', 'hooks', name)]) {
+  for (const rel of [join('lib', name), join('..', '..', 'hooks', name)]) {
     try { return require(join(here, rel)); } catch (e) { /* try next */ }
   }
   return null;

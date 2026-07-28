@@ -12,12 +12,23 @@
 const fs = require('fs');
 const path = require('path');
 
+// Layouts this must satisfy:
+//   <root>/src/hooks/            -> <root>/skills/          (repo + plugin)
+//   <dir>/hooks/tldr/            -> <dir>/skills/           (native agent hooks)
+//   <dir>/extensions/tldr/lib/   -> <dir>/skills/           (Pi extension)
+// Anything else falls back to the embedded ruleset below.
+const SKILL_CANDIDATES = [
+  ['..', '..', 'skills', 'tldr', 'SKILL.md'],
+  ['..', '..', '..', 'skills', 'tldr', 'SKILL.md'],
+  ['..', 'skills', 'tldr', 'SKILL.md'],
+];
+
 function readSkill() {
-  try {
-    return fs.readFileSync(path.join(__dirname, '..', '..', 'skills', 'tldr', 'SKILL.md'), 'utf8');
-  } catch (e) {
-    return '';
+  for (const rel of SKILL_CANDIDATES) {
+    try { return fs.readFileSync(path.join(__dirname, ...rel), 'utf8'); }
+    catch (e) { /* try next */ }
   }
+  return '';
 }
 
 function getInstructions(mode) {
