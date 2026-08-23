@@ -59,6 +59,7 @@ Stop: "stop tldr" or "normal mode"
 Auto-Clarity: drop TLDR for security warnings, irreversible actions, ambiguity risk, user confusion. Resume after.
 
 Boundaries: code/commits/PRs written normal.
+TLDR footer: replying to the user only (never code/commits/tool output), if the response exceeds ANY of 3 sentences, 30 words, or 100 characters, append a brief \`TLDR:\` summary line at the bottom. No footer when none are true.
 `;
 
 const SENTINEL = 'Respond in TLDR style';

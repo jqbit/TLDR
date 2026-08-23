@@ -92,7 +92,9 @@ if (skillContent) {
     '## Auto-Clarity\n\n' +
     'Drop TLDR for: security warnings, irreversible action confirmations, multi-step sequences where fragment order risks misread, user asks to clarify or repeats question. Resume TLDR after clear part done.\n\n' +
     '## Boundaries\n\n' +
-    'Code/commits/PRs: write normal. "stop tldr" or "normal mode": revert. Level persist until changed or session end.';
+    'Code/commits/PRs: write normal. "stop tldr" or "normal mode": revert. Level persist until changed or session end.\n\n' +
+    '## TLDR footer\n\n' +
+    'Replying to the user only (never code/commits/PRs/tool output): if the response exceeds ANY of 3 sentences, 30 words total, or 100 characters, append a brief `TLDR:` summary line at the bottom. No footer when none are true.';
 }
 
 

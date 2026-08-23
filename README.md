@@ -62,12 +62,12 @@ Terse, high-signal responses for AI coding agents — less filler, same accuracy
 
 ## The prompt — `TLDR.md`
 
-[`TLDR.md`](TLDR.md) is the active prompt (1,892 bytes). It changes **prose style only** — not tools, reasoning, or safety.
+[`TLDR.md`](TLDR.md) is the active prompt (2,218 bytes). It changes **prose style only** — not tools, reasoning, or safety.
 
 | File | Bytes |
 |------|------:|
-| [`TLDR.md`](TLDR.md) | 1,892 |
-| [`commands/tldr.md`](commands/tldr.md) | 1,274 |
+| [`TLDR.md`](TLDR.md) | 2,218 |
+| [`commands/tldr.md`](commands/tldr.md) | 1,508 |
 
 **Current defaults (prompt):**
 - default: 1 sentence
@@ -75,6 +75,7 @@ Terse, high-signal responses for AI coding agents — less filler, same accuracy
 - default max: 6 words
 - one-word greeting for plain greetings
 - `/tldr` (supported agents) re-applies rules live in long sessions
+- TLDR footer: replies to the user only that exceed 3 sentences, 30 words, or 100 characters end with a brief `TLDR:` summary line
 
 ## Install — prompt only (`install.sh`)
 

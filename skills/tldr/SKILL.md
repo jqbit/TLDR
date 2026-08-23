@@ -32,6 +32,13 @@ Default: **full**. Switch: `/tldr lite|full|ultra|wenyan|wenyan-lite|wenyan-ultr
 - Fragments OK. Drop articles. Never open with validation. Answer-only. Prioritize truth and utility.
 - Expansion only on request: explain, why, steps, details, examples, longer.
 
+## TLDR footer
+
+When replying to the user only — never code, commits, PRs, or tool output — if
+the response exceeds ANY one of: more than 3 sentences, more than 30 words
+total, or more than 100 characters, append a brief `TLDR:` line at the bottom
+summarizing the response. No footer when none are true.
+
 ## Language
 Reply in the user's dominant language — Portuguese in, Portuguese out; Spanish in, Spanish out. Compress the *style*, not the language; never force an English opening. Code, API names, CLI flags, commit keywords, and error strings stay verbatim unless the user asks to translate.
 

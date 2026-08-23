@@ -15,4 +15,8 @@ confirmations, multi-step sequences where fragments risk misread, or when
 user is confused or repeating. Resume after.
 
 Boundaries: code, commit messages, and PR descriptions stay normal prose.
+
+TLDR footer: replying to the user only (never code/commits/tool output), if the
+response exceeds ANY of 3 sentences, 30 words total, or 100 characters, append
+a brief `TLDR:` summary line at the bottom. No footer when none are true.
 <!-- tldr-end -->
